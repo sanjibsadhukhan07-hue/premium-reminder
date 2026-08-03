@@ -12,11 +12,11 @@ spring:
     password: ${DB_PASSWORD:postgres}
   jpa:
     hibernate:
-      ddl-auto: update   # fine for MVP; switch to Flyway migrations before heavy production use
-      dialect: org.hibernate.dialect.PostgreSQLDialect
+      ddl-auto: update
     show-sql: false
     properties:
       hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
   mail:
     host: ${MAIL_HOST:smtp.gmail.com}
