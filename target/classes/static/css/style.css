@@ -1,0 +1,130 @@
+/* PREMIUM REMINDER - Restyled to match Koley Financial Services (KFS) brand identity
+   Navy Blue + Orange + White */
+
+:root {
+    --bg-dark: #0a1628;
+    --bg-navy: #0d2045;
+    --bg-vibrant: #003580;
+    --orange: #E85D04;
+    --orange-muted: #cc5200;
+    --orange-light: #ff7a1a;
+    --white: #ffffff;
+    --text-gray: #c8d6e8;
+    --success-green: #2ecc71;
+    --danger-red: #e74c3c;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg-dark);
+    color: var(--white);
+    line-height: 1.6;
+}
+
+/* --- Auth / Login Page --- */
+.auth-box {
+    max-width: 380px;
+    margin: 100px auto;
+    background: var(--bg-navy);
+    padding: 36px;
+    border-radius: 14px;
+    border: 1px solid rgba(232, 93, 4, 0.4);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    text-align: center;
+}
+.auth-box .logo-wrap { margin-bottom: 20px; }
+.auth-box .logo-wrap img { max-width: 180px; height: auto; }
+.auth-box h1 { font-size: 20px; margin-bottom: 20px; color: var(--orange); letter-spacing: 0.5px; }
+.auth-box label { display: block; margin-top: 14px; font-size: 13px; color: var(--text-gray); text-align: left; }
+.auth-box input {
+    width: 100%; padding: 10px; margin-top: 4px; border-radius: 6px;
+    border: 1px solid rgba(232, 93, 4, 0.4); background: #060f1e; color: var(--white);
+}
+.auth-box input:focus { outline: none; border-color: var(--orange); box-shadow: 0 0 0 2px rgba(232,93,4,0.2); }
+.auth-box button {
+    margin-top: 22px; width: 100%; padding: 12px; background: var(--orange); color: var(--white);
+    border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; transition: 0.3s;
+}
+.auth-box button:hover { background: var(--orange-muted); transform: translateY(-2px); }
+.error { color: #ff8a80; font-size: 13px; margin-bottom: 8px; }
+.success { color: #7CFFB2; font-size: 13px; margin-bottom: 8px; }
+
+/* --- Top Navigation Bar --- */
+.topbar {
+    background-color: #ffffff;
+    padding: 12px 5%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 3px solid var(--orange);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+}
+.topbar .brand { display: flex; align-items: center; gap: 12px; }
+.topbar .brand img { height: 42px; }
+.topbar .brand strong { color: #003580; font-size: 16px; }
+.topbar a {
+    color: #003580; text-decoration: none; margin-left: 18px; font-weight: 600; font-size: 14px; transition: 0.3s;
+}
+.topbar a:hover { color: var(--orange); }
+
+/* --- Layout --- */
+.container { max-width: 1150px; margin: 30px auto; padding: 0 20px; }
+
+.card {
+    background: var(--bg-navy);
+    border: 1px solid rgba(232, 93, 4, 0.35);
+    border-radius: 12px;
+    padding: 22px;
+    margin-bottom: 22px;
+}
+.card h2 { color: var(--orange); margin-bottom: 16px; }
+.card p { color: var(--text-gray); margin-bottom: 8px; }
+.card p strong { color: var(--white); }
+
+/* --- Tables --- */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--bg-navy);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(232, 93, 4, 0.3);
+}
+th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid rgba(232, 93, 4, 0.15); font-size: 14px; }
+th { background: rgba(232, 93, 4, 0.12); color: var(--orange-light); text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; }
+td { color: var(--text-gray); }
+tr:hover td { background: rgba(232, 93, 4, 0.05); }
+
+/* --- Badges --- */
+.badge { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+.badge-due { background: rgba(232, 93, 4, 0.2); color: var(--orange-light); }
+.badge-paid { background: rgba(46, 204, 113, 0.2); color: var(--success-green); }
+.badge-overdue { background: rgba(231, 76, 60, 0.2); color: #ff8a80; }
+
+/* --- Buttons --- */
+.btn {
+    display: inline-block; padding: 7px 14px; border-radius: 6px; font-size: 13px;
+    text-decoration: none; border: none; cursor: pointer; font-weight: 600; transition: 0.3s;
+}
+.btn-primary { background: var(--orange); color: var(--white); }
+.btn-primary:hover { background: var(--orange-muted); transform: translateY(-2px); }
+.btn-danger { background: var(--danger-red); color: var(--white); }
+.btn-danger:hover { background: #c0392b; }
+.btn-success { background: var(--success-green); color: #06210f; }
+.btn-success:hover { background: #27ae60; }
+form.inline { display: inline; }
+
+/* --- Forms --- */
+input, select {
+    padding: 9px; border-radius: 6px; border: 1px solid rgba(232, 93, 4, 0.4);
+    background: #060f1e; color: var(--white); font-size: 14px;
+}
+input:focus, select:focus { outline: none; border-color: var(--orange); box-shadow: 0 0 0 2px rgba(232,93,4,0.2); }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 680px; }
+.form-grid label { font-size: 13px; color: var(--orange-light); display: block; margin-bottom: 5px; font-weight: 500; }
+code { background: #060f1e; color: var(--orange-light); padding: 2px 8px; border-radius: 4px; }

@@ -1,0 +1,150 @@
+/* PREMIUM REMINDER - Matched to the Koley Financial Services (KFS) website design system
+   Light theme: white/off-white backgrounds, navy headings, orange accents, Playfair Display headings */
+
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap');
+
+:root {
+    --navy: #003580;
+    --navy-dark: #002060;
+    --orange: #E85D04;
+    --orange-light: #ff7a1a;
+    --white: #ffffff;
+    --off-white: #f5f7fa;
+    --text-dark: #0d1b2e;
+    --text-mid: #4a5568;
+    --text-light: #8a9ab0;
+    --border: rgba(0,53,128,0.12);
+    --success-green: #1e8e50;
+    --danger-red: #c0392b;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(120deg, #002060 0%, #003580 55%, #004aaa 100%);
+    background-attachment: fixed;
+    color: var(--text-dark);
+    line-height: 1.6;
+    min-height: 100vh;
+}
+
+h1, h2, h3 { font-family: 'Playfair Display', Georgia, serif; font-weight: 700; }
+
+/* --- Auth / Login Page --- */
+.auth-box {
+    max-width: 380px;
+    margin: 100px auto;
+    background: var(--white);
+    padding: 40px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    box-shadow: 0 16px 48px rgba(0,32,96,0.14);
+    text-align: center;
+}
+.auth-box .logo-wrap { margin-bottom: 22px; }
+.auth-box .logo-wrap img { max-width: 170px; height: auto; }
+.auth-box h1 { font-size: 22px; margin-bottom: 22px; color: var(--navy); }
+.auth-box label { display: block; margin-top: 14px; font-size: 13px; color: var(--text-mid); text-align: left; font-weight: 500; }
+.auth-box input {
+    width: 100%; padding: 10px 12px; margin-top: 5px; border-radius: 6px;
+    border: 1px solid var(--border); background: var(--off-white); color: var(--text-dark);
+}
+.auth-box input:focus { outline: none; border-color: var(--orange); box-shadow: 0 0 0 3px rgba(232,93,4,0.12); }
+.auth-box button {
+    margin-top: 24px; width: 100%; padding: 12px; background: var(--orange); color: var(--white);
+    border: none; border-radius: 6px; cursor: pointer; font-size: 15px; font-weight: 700;
+    box-shadow: 0 4px 16px rgba(232,93,4,0.35); transition: 0.2s;
+}
+.auth-box button:hover { background: #c94e00; transform: translateY(-2px); }
+.error { color: var(--danger-red); font-size: 13px; margin-bottom: 10px; }
+.success { color: var(--success-green); font-size: 13px; margin-bottom: 10px; }
+
+/* --- Top Navigation Bar --- */
+.topbar {
+    background: var(--white);
+    padding: 0 6%;
+    height: 72px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 3px solid var(--orange);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    box-shadow: 0 2px 16px rgba(0,32,96,0.10);
+}
+.topbar .brand { display: flex; align-items: center; gap: 12px; }
+.topbar .brand img { height: 46px; }
+.topbar .brand strong { color: var(--navy); font-size: 15px; font-weight: 700; letter-spacing: 0.3px; }
+.topbar a {
+    color: var(--text-dark); text-decoration: none; margin-left: 20px; font-weight: 500; font-size: 14px; transition: 0.2s;
+}
+.topbar a:hover { color: var(--orange); }
+
+/* --- Layout --- */
+.container { max-width: 1150px; margin: 34px auto; padding: 0 20px; }
+
+.card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 22px;
+    box-shadow: 0 4px 16px rgba(0,32,96,0.05);
+}
+.card h2 { color: var(--navy); margin-bottom: 16px; font-size: 1.4rem; }
+.card p { color: var(--text-mid); margin-bottom: 8px; }
+.card p strong { color: var(--navy); }
+
+/* --- Tables --- */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--white);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 16px rgba(0,32,96,0.05);
+}
+th, td { padding: 13px 14px; text-align: left; border-bottom: 1px solid var(--border); font-size: 14px; }
+th { background: var(--off-white); color: var(--navy); text-transform: uppercase; font-size: 11.5px; letter-spacing: 0.6px; font-weight: 700; }
+td { color: var(--text-mid); }
+tr:hover td { background: rgba(232, 93, 4, 0.04); }
+
+/* --- Badges --- */
+.badge { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+.badge-due { background: rgba(232, 93, 4, 0.12); color: var(--orange); }
+.badge-paid { background: rgba(30, 142, 80, 0.12); color: var(--success-green); }
+.badge-overdue { background: rgba(192, 57, 43, 0.12); color: var(--danger-red); }
+
+/* --- Buttons --- */
+.btn {
+    display: inline-block; padding: 8px 16px; border-radius: 6px; font-size: 13px;
+    text-decoration: none; border: none; cursor: pointer; font-weight: 700; transition: 0.2s;
+}
+.btn-primary { background: var(--orange); color: var(--white); box-shadow: 0 2px 8px rgba(232,93,4,0.3); }
+.btn-primary:hover { background: #c94e00; transform: translateY(-2px); }
+.btn-danger { background: var(--danger-red); color: var(--white); }
+.btn-danger:hover { background: #a5311f; }
+.btn-success { background: var(--success-green); color: var(--white); }
+.btn-success:hover { background: #166b3d; }
+form.inline { display: inline; }
+
+/* --- Forms --- */
+input, select {
+    padding: 10px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--white); color: var(--text-dark); font-size: 14px;
+}
+input:focus, select:focus { outline: none; border-color: var(--orange); box-shadow: 0 0 0 3px rgba(232,93,4,0.12); }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; max-width: 680px; }
+.form-grid label { font-size: 13px; color: var(--navy); display: block; margin-bottom: 5px; font-weight: 600; }
+code { background: var(--off-white); color: var(--orange); padding: 3px 9px; border-radius: 4px; font-weight: 600; }
+
+.actions-cell {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+.actions-cell form.inline { display: inline-flex; }

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Reminder Logs - KFS Premium Reminder</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div class="topbar">
+    <div class="brand">
+        <img th:src="@{/images/logo.png}" alt="KFS">
+        <strong>Premium Reminder — Admin</strong>
+    </div>
+    <div>
+        <a th:href="@{/admin/dashboard}">Dashboard</a>
+        <a th:href="@{/logout}">Logout</a>
+    </div>
+</div>
+<div class="container">
+    <table>
+        <thead>
+        <tr><th>Sent At</th><th>Customer</th><th>Channel</th><th>Status</th><th>Detail</th></tr>
+        </thead>
+        <tbody>
+        <tr th:each="l : ${logs}">
+            <td th:text="${l.sentAt}"></td>
+            <td th:text="${l.customer.fullName}"></td>
+            <td th:text="${l.channel}"></td>
+            <td th:text="${l.success} ? 'Success' : 'Failed'"></td>
+            <td th:text="${l.detail}"></td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+</body>
+</html>

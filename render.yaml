@@ -1,0 +1,44 @@
+databases:
+  - name: premium-reminder-db
+    plan: free
+    databaseName: premiumreminder
+    user: premiumreminder
+
+services:
+  - type: web
+    name: premium-reminder
+    runtime: docker
+    plan: free
+    envVars:
+      - key: DB_URL
+        fromDatabase:
+          name: premium-reminder-db
+          property: connectionString
+      - key: DB_USERNAME
+        fromDatabase:
+          name: premium-reminder-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: premium-reminder-db
+          property: password
+      - key: MAIL_HOST
+        value: smtp.gmail.com
+      - key: MAIL_PORT
+        value: 587
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: MSG91_AUTH_KEY
+        sync: false
+      - key: MSG91_FLOW_ID
+        sync: false
+      - key: MSG91_SENDER_ID
+        sync: false
+      - key: ADMIN_USERNAME
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false

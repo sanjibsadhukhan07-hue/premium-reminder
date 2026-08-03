@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Login - KFS Premium Reminder</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div class="auth-box">
+    <div class="logo-wrap"><img th:src="@{/images/logo.png}" alt="Koley Financial Services"></div>
+    <h1>Premium Reminder Portal</h1>
+    <form th:action="@{/login}" method="post">
+        <div th:if="${param.error}" class="error">Invalid username or password.</div>
+        <div th:if="${param.logout}" class="success">You have been logged out.</div>
+        <label>Username</label>
+        <input type="text" name="username" required autofocus>
+        <label>Password</label>
+        <input type="password" name="password" required>
+        <button type="submit">Sign in</button>
+    </form>
+</div>
+</body>
+</html>
