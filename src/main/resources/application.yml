@@ -13,6 +13,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update   # fine for MVP; switch to Flyway migrations before heavy production use
+      dialect: org.hibernate.dialect.PostgreSQLDialect
     show-sql: false
     properties:
       hibernate:
