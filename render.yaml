@@ -32,12 +32,16 @@ services:
         sync: false
       - key: MAIL_FROM
         sync: false
-      - key: MSG91_AUTH_KEY
+      - key: FAST2SMS_API_KEY
         sync: false
-      - key: MSG91_FLOW_ID
+      - key: WHATSAPP_ACCESS_TOKEN
         sync: false
-      - key: MSG91_SENDER_ID
+      - key: WHATSAPP_PHONE_NUMBER_ID
         sync: false
+      - key: WHATSAPP_TEMPLATE_NAME
+        value: premium_reminder
+      - key: WHATSAPP_TEMPLATE_LANGUAGE
+        value: en_US
       - key: ADMIN_USERNAME
         sync: false
       - key: ADMIN_PASSWORD
