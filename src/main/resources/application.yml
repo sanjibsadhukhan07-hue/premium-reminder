@@ -45,7 +45,7 @@ app:
     template-name: ${WHATSAPP_TEMPLATE_NAME:premium_reminder}
     template-language: ${WHATSAPP_TEMPLATE_LANGUAGE:en_US}
   scheduler:
-    cron: ${REMINDER_CRON:0 0 9 * * *}   # every day at 09:00 server time
+    cron: ${REMINDER_CRON:0 */5 * * * *}   # every day at 09:00 server time
   admin:
     username: ${ADMIN_USERNAME:admin}
     password: ${ADMIN_PASSWORD:changeme123}

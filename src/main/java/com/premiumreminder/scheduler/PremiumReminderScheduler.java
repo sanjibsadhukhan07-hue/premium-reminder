@@ -21,7 +21,7 @@ public class PremiumReminderScheduler {
     private final NotificationService notificationService;
 
     // Runs every day at 09:00 server time. Change the cron in application.yml (app.scheduler.cron) if needed.
-    @Scheduled(cron = "${app.scheduler.cron:0 0 9 * * *}")
+    @Scheduled(cron = "${app.scheduler.cron:0 */5 * * * *}")
     @Transactional
     public void runDailyReminders() {
         List<Customer> due = customerService.findDueForReminderToday();
