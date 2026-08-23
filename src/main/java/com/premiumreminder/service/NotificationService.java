@@ -79,7 +79,7 @@ public class NotificationService {
                     customer.getPolicyNumber(),
                     dueDateStr
             );
-            whatsAppService.sendTemplate(waNumber, List.of());
+            whatsAppService.sendTemplate(waNumber, templateParams);
             logAttempt(customer, ReminderLog.Channel.WHATSAPP, true, "Sent");
         } catch (Exception e) {
             log.error("WhatsApp failed for customer {}: {}", customer.getId(), e.getMessage());
