@@ -1,5 +1,6 @@
 package com.premiumreminder.service;
 
+import com.premiumreminder.model.Customer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -36,6 +37,12 @@ public class WhatsAppService {
     @Value("${app.whatsapp.template-language:en_US}")
     private String templateLanguage;
 
+    @Value("${app.whatsapp.birthday-template-name:birthday_wish}")
+    private String birthdayTemplateName;
+
+    @Value("${app.whatsapp.birthday-template-language:en_US}")
+    private String birthdayTemplateLanguage;
+
     /**
      * Sends an approved WhatsApp template message. bodyParams must match, in order, the
      * {{1}}, {{2}}, ... placeholders defined in your approved template's body text.
@@ -70,5 +77,42 @@ public class WhatsAppService {
                 .toBodilessEntity();
 
         log.info("WhatsApp template message sent to {}", mobileWithCountryCode);
+    }
+
+    /**
+     * Sends the approved WhatsApp birthday-wish template. bodyParams must match, in order,
+     * the {{1}}, {{2}}, ... placeholders defined in that approved template's body text
+     * (e.g. just the customer's first/full name).
+     * mobileWithCountryCode must include the country code with no "+" and no leading zero,
+     * e.g. "919812345678".
+     */
+    public void sendBirthdayTemplate(String mobileWithCountryCode, List<String> bodyParams) {
+        List<Map<String, String>> parameters = bodyParams.stream()
+                .map(p -> Map.of("type", "text", "text", p))
+                .toList();
+
+        Map<String, Object> payload = Map.of(
+                "messaging_product", "whatsapp",
+                "to", mobileWithCountryCode,
+                "type", "template",
+                "template", Map.of(
+                        "name", birthdayTemplateName,
+                        "language", Map.of("code", birthdayTemplateLanguage),
+                        "components", List.of(Map.of(
+                                "type", "body",
+                                "parameters", parameters
+                        ))
+                )
+        );
+
+        restClient.post()
+                .uri("/v20.0/{phoneNumberId}/messages", phoneNumberId)
+                .header("Authorization", "Bearer " + accessToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(payload)
+                .retrieve()
+                .toBodilessEntity();
+
+        log.info("WhatsApp birthday template message sent to {}", mobileWithCountryCode);
     }
 }

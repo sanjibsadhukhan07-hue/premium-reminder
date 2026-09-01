@@ -125,6 +125,9 @@ tr:hover td { background: rgba(232, 93, 4, 0.04); }
 }
 .btn-primary { background: var(--orange); color: var(--white); box-shadow: 0 2px 8px rgba(232,93,4,0.3); }
 .btn-primary:hover { background: #c94e00; transform: translateY(-2px); }
+.btn-secondary { background: var(--navy); color: var(--white); box-shadow: 0 2px 8px rgba(0,53,128,0.25); }
+.btn-secondary:hover { background: var(--navy-dark); transform: translateY(-2px); }
+.btn-icon { padding: 8px 10px; display: inline-flex; align-items: center; justify-content: center; }
 .btn-danger { background: var(--danger-red); color: var(--white); }
 .btn-danger:hover { background: #a5311f; }
 .btn-success { background: var(--success-green); color: var(--white); }

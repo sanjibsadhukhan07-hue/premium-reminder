@@ -14,6 +14,8 @@
     <div>
         <a th:href="@{/admin/dashboard}">Dashboard</a>
         <a th:href="@{/admin/customers/new}">Add Customer</a>
+        <a th:href="@{/admin/birthdays}">Birthdays</a>
+        <a th:href="@{/admin/relatives}">Relatives</a>
         <a th:href="@{/admin/reminder-logs}">Reminder Logs</a>
         <a th:href="@{/logout}">Logout</a>
     </div>
@@ -47,17 +49,24 @@
             <button class="btn btn-primary" type="submit">Run reminders now</button>
         </form>
     </div>
-
+    <div class="card">
+        <form th:action="@{/admin/dashboard}" method="get" class="inline">
+            <input type="text" name="q" th:value="${q}" placeholder="Search by name, policy, email or phone..." style="min-width:300px;">
+            <button class="btn btn-primary" type="submit">Search</button>
+            <a th:if="${q}" th:href="@{/admin/dashboard}" class="btn btn-secondary">Clear</a>
+        </form>
+    </div>
     <table>
         <thead>
         <tr>
-            <th>Name</th><th>Policy</th><th>Email</th><th>Phone</th>
+            <th>Name</th><th>DOB</th><th>Policy</th><th>Email</th><th>Phone</th>
             <th>Premium</th><th>Due Date</th><th>Status</th><th>Actions</th>
         </tr>
         </thead>
         <tbody>
         <tr th:each="c : ${customers}">
             <td th:text="${c.fullName}"></td>
+            <td th:text="${c.dateOfBirth != null ? c.dateOfBirth : '-'}"></td>
             <td th:text="${c.policyNumber}"></td>
             <td th:text="${c.email}"></td>
             <td th:text="${c.phone}"></td>
@@ -70,6 +79,16 @@
             </td>
             <td class="actions-cell">
                 <a class="btn btn-primary" th:href="@{/admin/customers/{id}/edit(id=${c.id})}">Edit</a>
+                <a th:if="${c.policyDocFileName != null}"
+                   class="btn btn-secondary btn-icon"
+                   title="View policy document"
+                   th:href="@{/admin/customers/{id}/policy-doc(id=${c.id})}"
+                   th:onclick="'window.open(this.href, \'policyDoc\', \'width=850,height=950,resizable=yes,scrollbars=yes\'); return false;'">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                </a>
                 <form class="inline" th:action="@{/admin/customers/{id}/mark-paid(id=${c.id})}" method="post">
                     <button class="btn btn-success" type="submit">Mark Paid</button>
                 </form>

@@ -7,6 +7,9 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+import org.springframework.format.annotation.DateTimeFormat;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -40,17 +43,35 @@ public class Customer {
 
     private String insurerName;
 
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+    private LocalDate dateOfBirth;
+
+    private String policyDocFileName;
+
+    private String policyDocContentType;
+
+    @Lob
+    @JdbcTypeCode(SqlTypes.VARBINARY)
+    @Basic(fetch = FetchType.LAZY)
+    private byte[] policyDocData;
+
     @NotNull
     private BigDecimal premiumAmount;
 
     @NotNull
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate nextDueDate;
 
     // How many days before nextDueDate reminders should start (default 30 = "1 month")
     private int reminderWindowDays = 30;
 
-    // How often (in days) the premium repeats once paid & renewed (e.g. 365 for annual)
-    private int renewalCycleDays = 365;
+    // How often the premium repeats once paid & renewed: yearly, half-yearly, quarterly, or 3-yearly.
+    // Replaces the old fixed-day renewalCycleDays field with calendar-correct date math
+    // (see PremiumFrequency.nextDueDate).
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private PremiumFrequency premiumFrequency = PremiumFrequency.YEARLY;
 
     private boolean paid = false;
 

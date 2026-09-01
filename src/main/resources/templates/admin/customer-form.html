@@ -13,13 +13,15 @@
     </div>
     <div>
         <a th:href="@{/admin/dashboard}">Dashboard</a>
+        <a th:href="@{/admin/birthdays}">Birthdays</a>
+        <a th:href="@{/admin/relatives}">Relatives</a>
         <a th:href="@{/logout}">Logout</a>
     </div>
 </div>
 <div class="container">
     <div class="card">
         <h2 th:text="${customer.id != null} ? 'Edit Customer' : 'Add Customer'"></h2>
-        <form th:action="@{/admin/customers/save}" th:object="${customer}" method="post" class="form-grid">
+        <form th:action="@{/admin/customers/save}" th:object="${customer}" method="post" enctype="multipart/form-data" class="form-grid">
             <input type="hidden" th:field="*{id}">
             <div>
                 <label>Full Name</label>
@@ -42,6 +44,10 @@
                 <input type="text" th:field="*{insurerName}">
             </div>
             <div>
+                <label>Date of Birth</label>
+                <input type="date" th:field="*{dateOfBirth}">
+            </div>
+            <div>
                 <label>Premium Amount</label>
                 <input type="number" step="0.01" th:field="*{premiumAmount}" required>
             </div>
@@ -50,17 +56,34 @@
                 <input type="date" th:field="*{nextDueDate}" required>
             </div>
             <div>
-                <label>Reminder Window (days before due date)</label>
-                <input type="number" th:field="*{reminderWindowDays}">
+                <label>Premium Frequency</label>
+                <select th:field="*{premiumFrequency}" required>
+                    <option th:each="freq : ${T(com.premiumreminder.model.PremiumFrequency).values()}"
+                            th:value="${freq}" th:text="${freq.label}"></option>
+                </select>
             </div>
             <div>
-                <label>Renewal Cycle (days)</label>
-                <input type="number" th:field="*{renewalCycleDays}">
+                <label>Reminder Window (days before due date)</label>
+                <input type="number" th:field="*{reminderWindowDays}">
             </div>
             <div>
                 <label>Active</label>
                 <input type="checkbox" th:field="*{active}">
             </div>
+
+            <div style="grid-column: span 2; margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--border);">
+                <label>Policy Document (PDF only)</label>
+                <p th:if="${customer.policyDocFileName != null}" style="margin: 6px 0 10px;">
+                    Current file: <span th:text="${customer.policyDocFileName}"></span>
+                    <a th:href="@{/admin/customers/{id}/policy-doc(id=${customer.id})}" target="_blank">(view)</a>
+                </p>
+                <input type="file" name="policyDoc" accept="application/pdf,.pdf">
+                <p style="margin-top: 6px; color: var(--text-mid); font-size: 13px;">
+                    <span th:if="${customer.policyDocFileName != null}">Leave blank to keep the existing document.</span>
+                    <span th:unless="${customer.policyDocFileName != null}">Optional — you can also add this later.</span>
+                </p>
+            </div>
+
             <div style="grid-column: span 2;">
                 <button class="btn btn-primary" type="submit">Save</button>
             </div>

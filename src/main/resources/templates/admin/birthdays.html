@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Birthdays - KFS Premium Reminder</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div class="topbar">
+    <div class="brand">
+        <img th:src="@{/images/logo.png}" alt="KFS">
+        <strong>Premium Reminder — Admin</strong>
+    </div>
+    <div>
+        <a th:href="@{/admin/dashboard}">Dashboard</a>
+        <a th:href="@{/admin/customers/new}">Add Customer</a>
+        <a th:href="@{/admin/birthdays}">Birthdays</a>
+        <a th:href="@{/admin/relatives}">Relatives</a>
+        <a th:href="@{/admin/reminder-logs}">Reminder Logs</a>
+        <a th:href="@{/logout}">Logout</a>
+    </div>
+</div>
+<div class="container">
+    <div class="card" th:if="${wishSent}" style="color:#69f0ae;">
+        <span th:text="${wishSent}"></span>
+    </div>
+    <div class="card" th:if="${wishError}" style="color:#ff8a80;">
+        <span th:text="${wishError}"></span>
+    </div>
+
+    <div class="card">
+        <strong th:text="${#lists.size(birthdaysToday) + #lists.size(relativeBirthdaysToday)}">0</strong>
+        birthday(s) today
+        (<span th:text="${#lists.size(birthdaysToday)}">0</span> policyholder(s),
+        <span th:text="${#lists.size(relativeBirthdaysToday)}">0</span> relative(s)).
+        <form th:action="@{/admin/run-birthday-wishes-now}" method="post" style="display:inline">
+            <button class="btn btn-primary" type="submit">Send today's birthday wishes now</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h3>Policyholders</h3>
+        <table>
+            <thead>
+            <tr>
+                <th>Name</th><th>Date of Birth</th><th>Next Birthday</th><th>Email</th><th>Phone</th><th>Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="e : ${entries}">
+                <td th:text="${e.customer.fullName}"></td>
+                <td th:text="${e.customer.dateOfBirth}"></td>
+                <td th:text="${e.nextBirthday}"></td>
+                <td th:text="${e.customer.email}"></td>
+                <td th:text="${e.customer.phone}"></td>
+                <td class="actions-cell">
+                    <form class="inline" th:action="@{/admin/birthdays/{id}/send(id=${e.customer.id})}" method="post">
+                        <button class="btn btn-success" type="submit">Send Wish Now</button>
+                    </form>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <h3>Relatives</h3>
+        <table>
+            <thead>
+            <tr>
+                <th>Name</th><th>Relation</th><th>Policyholder</th><th>Date of Birth</th>
+                <th>Next Birthday</th><th>Email</th><th>Phone</th><th>Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="e : ${relativeEntries}">
+                <td th:text="${e.relative.fullName}"></td>
+                <td th:text="${e.relative.relation ?: '-'}"></td>
+                <td>
+                    <span th:text="${e.relative.customer.fullName}"></span>
+                    <span th:text="'(' + ${e.relative.customer.policyNumber} + ')'" style="color:var(--text-mid); font-size:12px;"></span>
+                </td>
+                <td th:text="${e.relative.dateOfBirth}"></td>
+                <td th:text="${e.nextBirthday}"></td>
+                <td th:text="${e.relative.email}"></td>
+                <td th:text="${e.relative.phone}"></td>
+                <td class="actions-cell">
+                    <form class="inline" th:action="@{/admin/relatives/{id}/send-wish(id=${e.relative.id})}" method="post">
+                        <button class="btn btn-success" type="submit">Send Wish Now</button>
+                    </form>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>

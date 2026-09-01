@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Relative Form - KFS Premium Reminder</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div class="topbar">
+    <div class="brand">
+        <img th:src="@{/images/logo.png}" alt="KFS">
+        <strong>Premium Reminder — Admin</strong>
+    </div>
+    <div>
+        <a th:href="@{/admin/dashboard}">Dashboard</a>
+        <a th:href="@{/admin/relatives}">Relatives</a>
+        <a th:href="@{/logout}">Logout</a>
+    </div>
+</div>
+<div class="container">
+    <div class="card">
+        <h2 th:text="${relative.id != null} ? 'Edit Relative' : 'Add Relative'"></h2>
+        <form th:action="@{/admin/relatives/save}" th:object="${relative}" method="post" class="form-grid">
+            <input type="hidden" th:field="*{id}">
+            <div>
+                <label>Policyholder (Customer)</label>
+                <select name="customerId" required>
+                    <option value="">-- select customer --</option>
+                    <option th:each="c : ${customers}"
+                            th:value="${c.id}"
+                            th:text="${c.fullName} + ' (' + ${c.policyNumber} + ')'"
+                            th:selected="${relative.customer != null and relative.customer.id == c.id}"></option>
+                </select>
+            </div>
+            <div>
+                <label>Full Name</label>
+                <input type="text" th:field="*{fullName}" required>
+            </div>
+            <div>
+                <label>Relation (e.g. Spouse, Son, Daughter)</label>
+                <input type="text" th:field="*{relation}">
+            </div>
+            <div>
+                <label>Date of Birth</label>
+                <input type="date" th:field="*{dateOfBirth}" required>
+            </div>
+            <div>
+                <label>Email</label>
+                <input type="email" th:field="*{email}" required>
+            </div>
+            <div>
+                <label>Phone (E.164, e.g. +9198XXXXXXXX)</label>
+                <input type="text" th:field="*{phone}" required>
+            </div>
+            <div style="grid-column: span 2;">
+                <button class="btn btn-primary" type="submit">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+</body>
+</html>

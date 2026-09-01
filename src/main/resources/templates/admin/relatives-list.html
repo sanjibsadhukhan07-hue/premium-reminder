@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Relatives - KFS Premium Reminder</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div class="topbar">
+    <div class="brand">
+        <img th:src="@{/images/logo.png}" alt="KFS">
+        <strong>Premium Reminder — Admin</strong>
+    </div>
+    <div>
+        <a th:href="@{/admin/dashboard}">Dashboard</a>
+        <a th:href="@{/admin/birthdays}">Birthdays</a>
+        <a th:href="@{/admin/relatives}">Relatives</a>
+        <a th:href="@{/logout}">Logout</a>
+    </div>
+</div>
+<div class="container">
+    <div class="card">
+        <a class="btn btn-primary" th:href="@{/admin/relatives/new}">Add Relative</a>
+    </div>
+    <table>
+        <thead>
+        <tr>
+            <th>Name</th><th>Relation</th><th>Policyholder</th><th>DOB</th><th>Email</th><th>Phone</th><th>Actions</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="r : ${relatives}">
+            <td th:text="${r.fullName}"></td>
+            <td th:text="${r.relation ?: '-'}"></td>
+            <td>
+                <span th:text="${r.customer.fullName}"></span>
+                <span th:text="'(' + ${r.customer.policyNumber} + ')'" style="color:var(--text-mid); font-size:12px;"></span>
+            </td>
+            <td th:text="${r.dateOfBirth}"></td>
+            <td th:text="${r.email}"></td>
+            <td th:text="${r.phone}"></td>
+            <td class="actions-cell">
+                <a class="btn btn-primary" th:href="@{/admin/relatives/{id}/edit(id=${r.id})}">Edit</a>
+                <form class="inline" th:action="@{/admin/relatives/{id}/delete(id=${r.id})}" method="post"
+                      onsubmit="return confirm('Delete this relative?');">
+                    <button class="btn btn-danger" type="submit">Delete</button>
+                </form>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+</body>
+</html>

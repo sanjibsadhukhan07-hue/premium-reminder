@@ -36,9 +36,6 @@ public class EmailService {
     @Value("${app.mail.resend-api-key}")
     private String resendApiKey;
 
-    /**
-     * Sends a plain text email via Resend. Throws on failure so the caller can log the outcome.
-     */
     public void send(String toEmail, String subject, String body) {
         try {
             Map<String, Object> payload = Map.of(
@@ -66,7 +63,6 @@ public class EmailService {
                 throw new RuntimeException("Resend API returned " + response.statusCode() + ": " + response.body());
             }
         } catch (Exception e) {
-            // Re-throw as unchecked so NotificationService's existing try/catch + logAttempt still works unchanged
             throw new RuntimeException("Failed to send email via Resend: " + e.getMessage(), e);
         }
     }
