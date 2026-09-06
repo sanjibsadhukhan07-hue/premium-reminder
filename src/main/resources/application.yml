@@ -46,8 +46,14 @@ app:
     phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:}
     template-name: ${WHATSAPP_TEMPLATE_NAME:premium_reminder}
     template-language: ${WHATSAPP_TEMPLATE_LANGUAGE:en}
+    template-name-hi: ${WHATSAPP_TEMPLATE_NAME_HI:premium_reminder_hi}
+    template-language-hi: ${WHATSAPP_TEMPLATE_LANGUAGE_HI:hi}
+    template-name-bn: ${WHATSAPP_TEMPLATE_NAME_BN:premium_reminder_bn}
+    template-language-bn: ${WHATSAPP_TEMPLATE_LANGUAGE_BN:bn}
     birthday-template-name: ${WHATSAPP_BIRTHDAY_TEMPLATE_NAME:birthday_greeting_en}
     birthday-template-language: ${WHATSAPP_BIRTHDAY_TEMPLATE_LANGUAGE:en_US}
+    birthday-template-name-hi: ${WHATSAPP_BIRTHDAY_TEMPLATE_NAME_HI:birthday_greeting_hi}
+    birthday-template-language-hi: ${WHATSAPP_BIRTHDAY_TEMPLATE_LANGUAGE_HI:hi_IN}
     birthday-template-name-bn: ${WHATSAPP_BIRTHDAY_TEMPLATE_NAME_BN:birthday_greeting_bn}
     birthday-template-language-bn: ${WHATSAPP_BIRTHDAY_TEMPLATE_LANGUAGE_BN:bn_IN}
     birthday-image-template-name: ${WHATSAPP_BIRTHDAY_IMAGE_TEMPLATE_NAME:birthday_greeting_image_en}
