@@ -19,6 +19,9 @@
     <div class="card" th:if="${wishError}" style="color:#c0392b;">
         <span th:text="${wishError}"></span>
     </div>
+    <div class="card">
+        <a class="btn btn-secondary" th:href="@{/admin/export/birthdays}">Export Birthdays (Excel)</a>
+    </div>
 
     <div class="card">
         <strong th:text="${#lists.size(birthdaysToday) + #lists.size(relativeBirthdaysToday)}">0</strong>

@@ -37,6 +37,9 @@ public class NotificationService {
     private final EmailService emailService;
     private final WhatsAppService whatsAppService;
     private final ReminderLogRepository reminderLogRepository;
+    private final AdminSettingsService adminSettingsService;
+    private final PolicyPaymentLinkService policyPaymentLinkService;
+
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd-MMM-yyyy");
 
@@ -120,5 +123,26 @@ public class NotificationService {
     private String effectiveWhatsAppNumber(Customer customer) {
         String whatsapp = customer.getWhatsappNumber();
         return (whatsapp != null && !whatsapp.isBlank()) ? whatsapp : customer.getPhone();
+    }
+
+    public void sendAdminDueTomorrowAlert(Policy policy) {
+        List<String> numbers = adminSettingsService.findAdminWhatsAppNumbers();
+        if (numbers.isEmpty()) {
+            log.warn("No admin WhatsApp number set - skipping due-tomorrow alert for policy {}", policy.getId());
+            return;
+        }
+        String link = policyPaymentLinkService.createMarkPaidLink(policy.getId());
+        for (String number : numbers) {
+            String mobile = number.replaceFirst("^\\+", "");
+            whatsAppService.sendPremiumDueTomorrowAdminTemplate(
+                    mobile,
+                    policy.getCustomer().getFullName(),
+                    policy.getPolicyNumber(),
+                    policy.getInsurerName(),
+                    policy.getPremiumAmount().toPlainString(),
+                    policy.getNextDueDate().toString(),
+                    link
+            );
+        }
     }
 }

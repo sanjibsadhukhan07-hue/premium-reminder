@@ -147,6 +147,28 @@ tr:hover td { background: rgba(232, 93, 4, 0.04); }
 .btn-success:hover { background: #166b3d; }
 form.inline { display: inline; }
 
+.nav-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: nowrap;
+}
+.btn-icon {
+    padding: 9px;
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+    color: var(--white);
+}
+.btn-icon svg {
+    display: block;
+    stroke: var(--white);
+    fill: none;
+}
+
 input, select {
     padding: 10px; border-radius: 6px; border: 1px solid var(--border);
     background: var(--white); color: var(--text-dark); font-size: 14px;

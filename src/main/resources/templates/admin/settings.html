@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Settings - KFS Premium Reminder</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:replace="~{fragments/topbar :: admin('settings')}"></div>
+<div class="container">
+    <div class="card" th:if="${settingsSaved}" style="color:#1e8e50;">
+        <span th:text="${settingsSaved}"></span>
+    </div>
+    <div class="card">
+        <h3>Admin WhatsApp Numbers</h3>
+        <p class="small-note">Used for "premium due tomorrow" alerts and "premium paid" confirmations.</p>
+        <table>
+            <thead><tr><th>Username</th><th>WhatsApp Number</th><th></th></tr></thead>
+            <tbody>
+            <tr th:each="u : ${admins}">
+                <form th:action="@{/admin/settings/update-phone}" method="post" class="inline">
+                    <input type="hidden" name="userId" th:value="${u.id}">
+                    <td th:text="${u.username}"></td>
+                    <td><input type="text" name="whatsappNumber" th:value="${u.whatsappNumber}"
+                               placeholder="+9198XXXXXXXX" style="min-width:220px;"></td>
+                    <td><button class="btn btn-primary" type="submit">Save</button></td>
+                </form>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>

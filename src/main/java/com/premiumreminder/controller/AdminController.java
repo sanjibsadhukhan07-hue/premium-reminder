@@ -5,10 +5,7 @@ import com.premiumreminder.model.Policy;
 import com.premiumreminder.repository.BirthdayLogRepository;
 import com.premiumreminder.repository.ReminderLogRepository;
 import com.premiumreminder.scheduler.PremiumReminderScheduler;
-import com.premiumreminder.service.BirthdayWishService;
-import com.premiumreminder.service.CustomerLoginService;
-import com.premiumreminder.service.CustomerService;
-import com.premiumreminder.service.PolicyService;
+import com.premiumreminder.service.*;
 import com.premiumreminder.service.PolicyService.ExcelImportResult;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +34,8 @@ public class AdminController {
     private final CustomerLoginService customerLoginService;
     private final BirthdayWishService birthdayWishService;
     private final BirthdayLogRepository birthdayLogRepository;
+    private final ExportService exportService;   // add to constructor-injected fields
+    private final AdminSettingsService adminSettingsService;
 
     /**
      * Dashboard: policyholders sorted by their nearest upcoming/overdue premium due
@@ -318,5 +317,42 @@ public class AdminController {
     public String birthdayLogs(Model model) {
         model.addAttribute("logs", birthdayLogRepository.findTop200ByOrderBySentAtDesc());
         return "admin/birthday-logs";
+    }
+
+    @GetMapping("/export/customers-policies")
+    public org.springframework.http.ResponseEntity<byte[]> exportCustomersAndPolicies() throws java.io.IOException {
+        byte[] data = exportService.exportCustomersAndPolicies();
+        String filename = "customers-and-policies-" + java.time.LocalDate.now() + ".xlsx";
+        return org.springframework.http.ResponseEntity.ok()
+                .contentType(org.springframework.http.MediaType
+                        .parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .body(data);
+    }
+
+    @GetMapping("/export/birthdays")
+    public org.springframework.http.ResponseEntity<byte[]> exportBirthdays() throws java.io.IOException {
+        byte[] data = exportService.exportBirthdays();
+        String filename = "birthdays-" + java.time.LocalDate.now() + ".xlsx";
+        return org.springframework.http.ResponseEntity.ok()
+                .contentType(org.springframework.http.MediaType
+                        .parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .body(data);
+    }
+
+    @GetMapping("/settings")
+    public String settingsForm(Model model) {
+        model.addAttribute("admins", adminSettingsService.findAdmins());
+        return "admin/settings";
+    }
+
+    @PostMapping("/settings/update-phone")
+    public String updateAdminPhone(@RequestParam Long userId,
+                                   @RequestParam String whatsappNumber,
+                                   RedirectAttributes redirectAttributes) {
+        adminSettingsService.updatePhone(userId, whatsappNumber);
+        redirectAttributes.addFlashAttribute("settingsSaved", "WhatsApp number updated.");
+        return "redirect:/admin/settings";
     }
 }

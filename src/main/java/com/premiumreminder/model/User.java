@@ -33,8 +33,9 @@ public class User {
 
     private boolean enabled = true;
 
-    // True for every newly-created login (the seeded admin account, or a customer
-    // login created via CustomerLoginService) since they start on a temporary/default
-    // password. Cleared the first time the user successfully changes their password.
     private boolean mustChangePassword = true;
+
+    // Set only for ADMIN-role users. Used by the scheduler to WhatsApp the admin
+    // for "premium due tomorrow" alerts and "premium paid" confirmations.
+    private String whatsappNumber; // E.164, e.g. +9198XXXXXXXX
 }

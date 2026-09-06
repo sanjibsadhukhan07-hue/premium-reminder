@@ -34,6 +34,7 @@ app:
   admin:
     username: ${ADMIN_USERNAME:admin}
     password: ${ADMIN_PASSWORD:changeme123}
+    public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:8080}
 
   mail:
     from: ${MAIL_FROM:noreply@example.com}
@@ -48,12 +49,18 @@ app:
     birthday-template-language: ${WHATSAPP_BIRTHDAY_TEMPLATE_LANGUAGE:en_US}
     birthday-template-name-bn: ${WHATSAPP_BIRTHDAY_TEMPLATE_NAME_BN:birthday_greeting_bn}
     birthday-template-language-bn: ${WHATSAPP_BIRTHDAY_TEMPLATE_LANGUAGE_BN:bn_IN}
+    birthday-image-template-name: ${WHATSAPP_BIRTHDAY_IMAGE_TEMPLATE_NAME:birthday_greeting_image_en}
+    birthday-image-template-language: ${WHATSAPP_BIRTHDAY_IMAGE_TEMPLATE_LANGUAGE:en}
+    admin-due-tomorrow-template-name: ${WHATSAPP_ADMIN_DUE_TOMORROW_TEMPLATE_NAME:premium_due_tomorrow_admin}
+    admin-due-tomorrow-template-language: ${WHATSAPP_ADMIN_DUE_TOMORROW_TEMPLATE_LANGUAGE:en}
+
 
   # Premium reminder sweep: runs every ALTERNATE day at 09:00 IST (the scheduler itself
   # skips odd epoch-days - see PremiumReminderScheduler). This cron sets the daily trigger
   # time; leave it alone unless you want a different time of day.
   scheduler:
     cron: "0 0 9 * * *"
+    admin-alert-cron: "0 30 8 * * *"
 
   # NOTE: SMS (Fast2SMS) support has been removed. Reminders and birthday wishes now go
   # out over WhatsApp and email only.

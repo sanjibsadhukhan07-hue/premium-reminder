@@ -39,7 +39,9 @@
             <button class="btn btn-primary" type="submit">Upload</button>
         </form>
     </div>
-
+    <div class="card">
+        <a class="btn btn-secondary" th:href="@{/admin/export/customers-policies}">Export Customers & Policies (Excel)</a>
+    </div>
     <div class="card">
         <strong th:text="${dueTodayCount}">0</strong> polic(y/ies) currently due for a reminder (30 days before/after renewal, unpaid).
         <form th:action="@{/admin/run-reminders-now}" method="post" style="display:inline">

@@ -12,13 +12,10 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.MonthDay;
+import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
 
-/**
- * Sends birthday wishes via WhatsApp and email only (no SMS). The scheduler that calls
- * runDailyBirthdayWishes() fires once daily at 10:00 AM IST - see BirthdayWishScheduler.
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -30,6 +27,9 @@ public class BirthdayWishService {
 
     private final EmailService emailService;
     private final WhatsAppService whatsAppService;
+    private final BirthdayCardService birthdayCardService;
+
+    private static final DateTimeFormatter DOB_FORMAT = DateTimeFormatter.ofPattern("dd-MM-yyyy");
 
     public record BirthdayEntry(Customer customer, LocalDate nextBirthday) {}
     public record RelativeBirthdayEntry(CustomerRelative relative, LocalDate nextBirthday) {}
@@ -82,10 +82,6 @@ public class BirthdayWishService {
         sendWish(r);
     }
 
-    /**
-     * Runs both the policyholder and relative birthday scans for today and sends
-     * wishes to whoever matches. Returns the combined count for the dashboard summary.
-     */
     public int runDailyBirthdayWishes() {
         List<Customer> todaysCustomers = findBirthdaysToday();
         List<CustomerRelative> todaysRelatives = findRelativeBirthdaysToday();
@@ -116,7 +112,11 @@ public class BirthdayWishService {
         String rawNumber = effectiveWhatsAppNumber(c);
         try {
             String mobile = rawNumber.replaceFirst("^\\+", "");
-            whatsAppService.sendBirthdayTemplate(mobile, List.of(c.getFullName()), c.getMessageLanguage());
+            String dobText = c.getDateOfBirth() != null ? c.getDateOfBirth().format(DOB_FORMAT) : null;
+            byte[] cardBytes = birthdayCardService.generateCard(c.getFullName(), dobText);
+            String mediaId = whatsAppService.uploadMedia(cardBytes, "birthday_card.png");
+            whatsAppService.sendBirthdayTemplateWithImage(
+                    mobile, mediaId, List.of(c.getFullName()), c.getMessageLanguage());
             log(c.getId(), c.getFullName(), null, null, "WHATSAPP", rawNumber, true, "Sent");
         } catch (Exception e) {
             log.error("Birthday WhatsApp message failed for customer {}", c.getId(), e);
@@ -143,7 +143,11 @@ public class BirthdayWishService {
         String rawNumber = r.getPhone();
         try {
             String mobile = rawNumber.replaceFirst("^\\+", "");
-            whatsAppService.sendBirthdayTemplate(mobile, List.of(r.getFullName()), r.getMessageLanguage());
+            String dobText = r.getDateOfBirth() != null ? r.getDateOfBirth().format(DOB_FORMAT) : null;
+            byte[] cardBytes = birthdayCardService.generateCard(r.getFullName(), dobText);
+            String mediaId = whatsAppService.uploadMedia(cardBytes, "birthday_card.png");
+            whatsAppService.sendBirthdayTemplateWithImage(
+                    mobile, mediaId, List.of(r.getFullName()), r.getMessageLanguage());
             log(customerId, r.getFullName(), r.getId(), relation, "WHATSAPP", rawNumber, true, "Sent");
         } catch (Exception e) {
             log.error("Birthday WhatsApp message failed for relative {}", r.getId(), e);

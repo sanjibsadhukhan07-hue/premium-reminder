@@ -8,6 +8,7 @@ import com.premiumreminder.repository.CustomerRepository;
 import com.premiumreminder.repository.PolicyRepository;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,7 @@ import java.util.*;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PolicyService {
 
     private final PolicyRepository policyRepository;
@@ -41,6 +43,10 @@ public class PolicyService {
         return policyRepository.findAllOrderByNextDueDateAsc();
     }
 
+    public List<Policy> findByCustomerId(Long customerId) {
+        return policyRepository.findByCustomerId(customerId);
+    }
+
     @Transactional
     public Policy save(Long customerId, Policy formPolicy) {
         Customer customer = customerRepository.findById(customerId)
@@ -52,6 +58,7 @@ public class PolicyService {
             target.setCustomer(customer);
         } else {
             target = findById(formPolicy.getId());
+            target.setCustomer(customer);
         }
 
         target.setCategory(formPolicy.getCategory());
@@ -210,28 +217,33 @@ public class PolicyService {
                 .toList();
     }
 
+    /**
+     * Active, unpaid, non-TRAVEL policies whose nextDueDate is exactly tomorrow -
+     * used for the admin's "premium due tomorrow" alert.
+     */
+    public List<Policy> findDueTomorrow() {
+        LocalDate tomorrow = LocalDate.now().plusDays(1);
+        return policyRepository.findByActiveTrueAndPaidFalse().stream()
+                .filter(p -> p.getCategory() != PolicyCategory.TRAVEL)
+                .filter(p -> tomorrow.equals(p.getNextDueDate()))
+                .toList();
+    }
+
     // ---------------------------------------------------------------------------------
-    // Bulk import from Excel (.xlsx). Replaces the old CSV importer per your source data
-    // being maintained in Excel workbooks (multiple sheets, one per insurer/category).
-    // Every sheet in the uploaded workbook is scanned; each is expected to have a header
-    // row with (case-insensitive, order-independent) column names:
+    // Bulk import from Excel (.xlsx). Every sheet in the uploaded workbook is scanned;
+    // each is expected to have a header row with (case-insensitive, order-independent)
+    // column names:
     //
     //   Required:  fullName, phone, policyNumber, premiumAmount, nextDueDate
-    //   Optional:  email (most of your sheets leave this blank - fine, WhatsApp still
-    //              works without it; email reminders/logins need it added later),
-    //              category (HEALTH/MOTOR/LIFE/PERSONAL_ACCIDENT/OTHER, default HEALTH),
-    //              insurerName, officeTag, dateOfBirth, planType, policyType, sumAssured,
-    //              healthCheckupNote, vehicleRegistrationNo, startDate,
-    //              premiumFrequency (YEARLY/HALF_YEARLY/QUARTERLY/THREE_YEARLY, default YEARLY),
-    //              reminderWindowDays (default 30), active (default true)
+    //   Optional:  email, category (HEALTH/MOTOR/LIFE/PERSONAL_ACCIDENT/OTHER, default
+    //              HEALTH), insurerName, officeTag, dateOfBirth, planType, policyType,
+    //              sumAssured, healthCheckupNote, vehicleRegistrationNo, startDate,
+    //              premiumFrequency (YEARLY/HALF_YEARLY/QUARTERLY/THREE_YEARLY, default
+    //              YEARLY), reminderWindowDays (default 30), active (default true)
     //
-    // Matching: customer is matched/created on phone number (reliably present in your
-    // sheets); policy is matched/created on policyNumber and linked to that customer.
+    // Matching: customer is matched/created on phone number; policy is matched/created
+    // on policyNumber and linked to that customer.
     // ---------------------------------------------------------------------------------
-    // Maps common real-world header spellings (from your existing tracking sheets) onto
-    // the canonical field keys used below. Matching is done after normalizing headers to
-    // lowercase-alphanumeric-only, so "S.A./IDV", "S A IDV" and "sa idv" all match the
-    // same alias entry, and punctuation/typos like "RENUWAL DATE" are absorbed here too.
     private static final Map<String, String> HEADER_ALIASES = Map.ofEntries(
             Map.entry("name", "fullname"),
             Map.entry("customername", "fullname"),
@@ -315,7 +327,6 @@ public class PolicyService {
         return true;
     }
 
-    /** Best-effort default category when a sheet has no explicit "category" column, inferred from the tab/sheet name. */
     private PolicyCategory defaultCategoryForSheet(String sheetName) {
         String s = sheetName.toUpperCase(Locale.ROOT);
         if (s.contains("MOTOR")) return PolicyCategory.MOTOR;
@@ -332,11 +343,8 @@ public class PolicyService {
         String policyNumber = requireField(row, col, fmt, "policynumber");
         BigDecimal premiumAmount = new BigDecimal(requireField(row, col, fmt, "premiumamount").replaceAll("[^0-9.]", ""));
         LocalDate nextDueDate = parseDate(requireField(row, col, fmt, "nextduedate"));
-        // Email is genuinely optional in your source sheets (most rows leave it blank) -
-        // only WhatsApp reminders will work for these until an email is added later.
         String email = optionalField(row, col, fmt, "email", null);
 
-        // Matched on phone number (the field your sheets reliably fill in), not email.
         Customer customer = customerRepository.findByPhone(phone).orElse(null);
         boolean newCustomer = customer == null;
         if (newCustomer) {
@@ -404,7 +412,7 @@ public class PolicyService {
         raw = raw.trim();
         int spaceIdx = raw.indexOf(' ');
         if (spaceIdx > 0 && raw.substring(spaceIdx + 1).contains(":")) {
-            raw = raw.substring(0, spaceIdx); // drop a trailing "00:00:00" time component
+            raw = raw.substring(0, spaceIdx);
         }
         List<java.time.format.DateTimeFormatter> patterns = List.of(
                 java.time.format.DateTimeFormatter.ISO_LOCAL_DATE,
