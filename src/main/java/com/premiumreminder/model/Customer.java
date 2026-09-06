@@ -15,7 +15,7 @@ import java.util.List;
 
 /**
  * A policyholder (a person), independent of any single policy.
- *
+ * <p>
  * ENTITY REDESIGN NOTE: the old Customer entity carried exactly one policy's worth of
  * fields (policyNumber, premiumAmount, nextDueDate, ...). Your real data shows the same
  * person holding several policies at once, often with different insurers (e.g. AVIJIT

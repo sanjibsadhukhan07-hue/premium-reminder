@@ -10,8 +10,6 @@ import java.util.Optional;
 
 public interface CustomerRepository extends JpaRepository<Customer, Long> {
 
-    Optional<Customer> findByEmail(String email);
-
     // Primary matching key for bulk import - your source sheets reliably have a phone
     // number but frequently leave email blank.
     Optional<Customer> findByPhone(String phone);

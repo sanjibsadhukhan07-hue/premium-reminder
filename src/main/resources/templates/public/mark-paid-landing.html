@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>KFS</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div class="container" style="max-width:480px; margin-top:80px; text-align:center;">
+    <div class="card" th:if="${status.name() == 'VALID'}">
+        <p>Confirming your payment…</p>
+        <form id="confirmForm" th:action="@{'/policies/' + ${policy.id} + '/mark-paid/' + ${token}}" method="post">
+            <!-- No-JS fallback: shown only if the auto-submit script below doesn't run -->
+            <noscript>
+                <button class="btn btn-primary" type="submit">Confirm - Mark as Paid</button>
+            </noscript>
+        </form>
+    </div>
+    <div class="card" th:if="${status.name() == 'USED'}">This link has already been used.</div>
+    <div class="card" th:if="${status.name() == 'EXPIRED'}">This link has expired.</div>
+    <div class="card" th:if="${status.name() == 'INVALID'}">This link is not valid.</div>
+</div>
+<script th:if="${status.name() == 'VALID'}">
+    document.getElementById('confirmForm').submit();
+</script>
+</body>
+</html>

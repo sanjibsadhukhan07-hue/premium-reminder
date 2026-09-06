@@ -31,6 +31,13 @@ public class CustomerService {
      * WhatsApp number is optional on the form: if left blank, it's set equal to the
      * primary phone number, so the customer only needs to fill it in when it's
      * genuinely different.
+     *
+     * Email is also optional. HTML forms submit a blank field as "" rather than null,
+     * but the email column has a unique constraint - two customers both saved with ""
+     * would violate it, even though neither has a "real" duplicate email (PostgreSQL's
+     * unique constraint treats every NULL as distinct from every other NULL, but treats
+     * "" as a real, comparable value). So any blank/whitespace-only submission is
+     * normalized to null here before it ever reaches the database.
      */
     @Transactional
     public Customer save(Customer formCustomer) {
@@ -38,14 +45,19 @@ public class CustomerService {
                 ? formCustomer.getPhone()
                 : formCustomer.getWhatsappNumber().trim();
 
+        String email = (formCustomer.getEmail() == null || formCustomer.getEmail().isBlank())
+                ? null
+                : formCustomer.getEmail().trim();
+
         if (formCustomer.getId() == null) {
             formCustomer.setWhatsappNumber(whatsapp);
+            formCustomer.setEmail(email);
             return customerRepository.save(formCustomer);
         }
 
         Customer existing = findById(formCustomer.getId());
         existing.setFullName(formCustomer.getFullName());
-        existing.setEmail(formCustomer.getEmail());
+        existing.setEmail(email);
         existing.setPhone(formCustomer.getPhone());
         existing.setWhatsappNumber(whatsapp);
         existing.setDateOfBirth(formCustomer.getDateOfBirth());

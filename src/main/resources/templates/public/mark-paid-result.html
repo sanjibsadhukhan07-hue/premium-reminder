@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>KFS</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div class="container" style="max-width:480px; margin-top:80px; text-align:center;">
+    <div class="card" th:if="${status.name() == 'SUCCESS'}" style="color:#1e8e50;">
+        <h3>Premium marked as paid</h3>
+        <p>Next due date: <strong th:text="${policy.nextDueDate}"></strong></p>
+    </div>
+    <div class="card" th:if="${status.name() == 'USED'}">This link has already been used.</div>
+    <div class="card" th:if="${status.name() == 'EXPIRED'}">This link has expired.</div>
+    <div class="card" th:if="${status.name() == 'INVALID'}">This link is not valid.</div>
+</div>
+</body>
+</html>
