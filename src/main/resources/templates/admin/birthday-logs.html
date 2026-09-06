@@ -2,7 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Reminder Logs - KFS Premium Reminder</title>
+    <title>Birthday Logs - KFS Premium Reminder</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <style>
         .pager-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; justify-content: space-between; }
@@ -11,35 +11,42 @@
     </style>
 </head>
 <body>
-<div th:replace="~{fragments/topbar :: admin('logs')}"></div>
+<div th:replace="~{fragments/topbar :: admin('birthday-logs')}"></div>
 <div class="container">
-    <div class="card">
-        <h2>Reminder Logs</h2>
-        <p class="small-note">Most recent 200 premium-reminder attempts across all policies, newest first.</p>
+    <div class="card" th:if="${wishSent}" style="color:#1e8e50;">
+        <span th:text="${wishSent}"></span>
+    </div>
+    <div class="card" th:if="${wishError}" style="color:#c0392b;">
+        <span th:text="${wishError}"></span>
     </div>
 
-    <table id="reminderLogTable">
+    <div class="card">
+        <h2>Birthday Wish Logs</h2>
+        <p class="small-note">Most recent 200 attempts across both policyholders and family members, newest first.</p>
+    </div>
+
+    <table id="birthdayLogTable">
         <thead>
         <tr>
-            <th>Sent At</th><th>Customer</th><th>Policy No.</th><th>Channel</th><th>Phone</th><th>Status</th><th>Detail</th>
+            <th>Sent At</th><th>Recipient</th><th>Relation</th><th>Channel</th><th>Phone</th><th>Status</th><th>Detail</th>
         </tr>
         </thead>
         <tbody>
         <tr th:each="l : ${logs}">
             <td th:text="${#temporals.format(l.sentAt, 'dd-MMM-yyyy HH:mm')}"></td>
             <td th:text="${l.customerName}"></td>
-            <td th:text="${l.policyNumber}"></td>
+            <td th:text="${l.relativeId != null} ? (${l.relation ?: '-'} + ' (relative)') : 'Policyholder'"></td>
             <td th:text="${l.channel}"></td>
             <td th:text="${l.phone ?: '-'}"></td>
             <td>
-                <span th:if="${l.success}" class="badge badge-paid">Success</span>
+                <span th:if="${l.success}" class="badge badge-paid">Sent</span>
                 <span th:if="${!l.success}" class="badge badge-overdue">Failed</span>
             </td>
-            <td th:text="${l.detail}"></td>
+            <td th:text="${l.message}"></td>
         </tr>
         </tbody>
     </table>
-    <div class="pager-bar" id="reminderLogPager" style="margin-top:10px;"></div>
+    <div class="pager-bar" id="birthdayLogPager" style="margin-top:10px;"></div>
 </div>
 
 <script>
@@ -92,7 +99,7 @@
         render();
     }
 
-    setupPager('reminderLogTable', 'reminderLogPager', 20);
+    setupPager('birthdayLogTable', 'birthdayLogPager', 20);
 </script>
 </body>
 </html>

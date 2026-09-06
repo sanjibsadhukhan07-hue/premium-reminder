@@ -6,17 +6,7 @@
     <link rel="stylesheet" th:href="@{/css/style.css}">
 </head>
 <body>
-<div class="topbar">
-    <div class="brand">
-        <img th:src="@{/images/logo.png}" alt="KFS">
-        <strong>Premium Reminder — Admin</strong>
-    </div>
-    <div>
-        <a th:href="@{/admin/dashboard}">Dashboard</a>
-        <a th:href="@{/admin/relatives}">Relatives</a>
-        <a th:href="@{/logout}">Logout</a>
-    </div>
-</div>
+<div th:replace="~{fragments/topbar :: admin('relatives')}"></div>
 <div class="container">
     <div class="card">
         <h2 th:text="${relative.id != null} ? 'Edit Relative' : 'Add Relative'"></h2>
@@ -28,7 +18,7 @@
                     <option value="">-- select customer --</option>
                     <option th:each="c : ${customers}"
                             th:value="${c.id}"
-                            th:text="${c.fullName} + ' (' + ${c.policyNumber} + ')'"
+                            th:text="${c.fullName} + ' (' + ${c.email} + ')'"
                             th:selected="${relative.customer != null and relative.customer.id == c.id}"></option>
                 </select>
             </div>
@@ -46,11 +36,19 @@
             </div>
             <div>
                 <label>Email</label>
-                <input type="email" th:field="*{email}" required>
+                <input type="email" th:field="*{email}">
             </div>
             <div>
                 <label>Phone (E.164, e.g. +9198XXXXXXXX)</label>
                 <input type="text" th:field="*{phone}" required>
+            </div>
+            <div>
+                <label>Message Language</label>
+                <select th:field="*{messageLanguage}">
+                    <option value="ENGLISH">English</option>
+                    <option value="HINDI">Hindi</option>
+                    <option value="BENGALI">Bengali</option>
+                </select>
             </div>
             <div style="grid-column: span 2;">
                 <button class="btn btn-primary" type="submit">Save</button>

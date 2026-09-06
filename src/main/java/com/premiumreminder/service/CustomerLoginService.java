@@ -24,6 +24,9 @@ public class CustomerLoginService {
      * Returns the plaintext password so the admin can share it once - it is never stored or shown again.
      */
     public String createLoginFor(Customer customer) {
+        if (customer.getEmail() == null || customer.getEmail().isBlank()) {
+            throw new IllegalStateException("Add an email address for " + customer.getFullName() + " before creating a login.");
+        }
         if (userRepository.findByUsername(customer.getEmail()).isPresent()) {
             throw new IllegalStateException("A login already exists for " + customer.getEmail());
         }

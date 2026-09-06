@@ -1,41 +1,59 @@
-server:
-  port: ${PORT:8080}
-
 spring:
-  servlet:
-    multipart:
-      max-file-size: 5MB
-      max-request-size: 5MB
+  application:
+    name: premium-reminder
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/premiumreminder}
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:postgres}
-    driver-class-name: org.postgresql.Driver
-    hikari:
-      initialization-fail-timeout: 60000
+    # For docker-compose (see docker-compose.yml), DATABASE_URL is set to
+    # jdbc:postgresql://db:5432/premium_reminder - "db" being the compose service name.
+    # For Railway or another host, use the connection string it gives you. Never leave
+    # this pointing at localhost inside a container - that resolves to the container
+    # itself, not a database, and produces exactly the "Unable to determine Dialect
+    # without JDBC metadata" failure you'll see if Postgres isn't actually reachable.
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/premium_reminder}
+    username: ${DATABASE_USERNAME:postgres}
+    password: ${DATABASE_PASSWORD:postgres}
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: false
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-        format_sql: true
+    # ON deliberately: templates (customer-form, dashboard, birthdays, etc.) navigate
+    # lazy collections like customer.policies / customer.relatives directly while
+    # rendering, and the dashboard sorts by Customer.getEarliestDueDate() (which reads
+    # the policies collection) in the controller. With this off, those all throw
+    # LazyInitializationException once the transaction that loaded the entity ends.
+    # Turning it on keeps the Hibernate session open through view rendering, which is
+    # the standard trade-off for a server-rendered Thymeleaf app like this one.
+    open-in-view: true
+  servlet:
+    multipart:
+      max-file-size: 15MB
+      max-request-size: 15MB
+
+server:
+  port: ${PORT:8080}
 
 app:
+  admin:
+    username: ${ADMIN_USERNAME:admin}
+    password: ${ADMIN_PASSWORD:changeme123}
+
   mail:
-    from: ${MAIL_FROM:no-reply@example.com}
+    from: ${MAIL_FROM:noreply@example.com}
     resend-api-key: ${RESEND_API_KEY:}
-  sms:
-    fast2sms:
-      api-key: ${FAST2SMS_API_KEY:}
+
   whatsapp:
     access-token: ${WHATSAPP_ACCESS_TOKEN:}
     phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:}
     template-name: ${WHATSAPP_TEMPLATE_NAME:premium_reminder}
-    template-language: ${WHATSAPP_TEMPLATE_LANGUAGE:en_US}
+    template-language: ${WHATSAPP_TEMPLATE_LANGUAGE:en}
+    birthday-template-name: ${WHATSAPP_BIRTHDAY_TEMPLATE_NAME:birthday_greeting_en}
+    birthday-template-language: ${WHATSAPP_BIRTHDAY_TEMPLATE_LANGUAGE:en_US}
+    birthday-template-name-bn: ${WHATSAPP_BIRTHDAY_TEMPLATE_NAME_BN:birthday_greeting_bn}
+    birthday-template-language-bn: ${WHATSAPP_BIRTHDAY_TEMPLATE_LANGUAGE_BN:bn_IN}
+
+  # Premium reminder sweep: runs every ALTERNATE day at 09:00 IST (the scheduler itself
+  # skips odd epoch-days - see PremiumReminderScheduler). This cron sets the daily trigger
+  # time; leave it alone unless you want a different time of day.
   scheduler:
-    cron: ${REMINDER_CRON:0 */5 * * * *}   # every 5 minutes by default
-  admin:
-    username: ${ADMIN_USERNAME:admin}
-    password: ${ADMIN_PASSWORD:changeme123}
+    cron: "0 0 9 * * *"
+
+  # NOTE: SMS (Fast2SMS) support has been removed. Reminders and birthday wishes now go
+  # out over WhatsApp and email only.

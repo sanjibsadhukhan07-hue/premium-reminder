@@ -26,5 +26,11 @@ public class BirthdayLog {
     private Long relativeId;   // null when the wish went to the policyholder themselves
     private String relation;   // e.g. "Spouse" - null when relativeId is null
 
+    // The actual phone number the message was sent to, when channel = WHATSAPP (the
+    // customer's effective WhatsApp number, i.e. whatsappNumber if set, else phone -
+    // see BirthdayWishService.effectiveWhatsAppNumber). Null for EMAIL rows, since a
+    // phone number isn't the relevant destination for that channel.
+    private String phone;
+
     private LocalDateTime sentAt = LocalDateTime.now();
 }

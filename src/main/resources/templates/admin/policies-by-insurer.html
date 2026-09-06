@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Policies by Insurer - KFS Premium Reminder</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        .tab-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+        .tab-btn {
+            padding: 9px 18px; border-radius: 8px 8px 0 0; border: 1px solid var(--border);
+            background: var(--off-white); color: var(--navy); font-weight: 700; font-size: 13px;
+            cursor: pointer;
+        }
+        .tab-btn.active { background: var(--orange); color: var(--white); border-color: var(--orange); }
+        .tab-btn.no-match { opacity: 0.4; }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+        .small-note { color: var(--text-mid); font-size: 12px; }
+        #bulkBar { display: none; align-items: center; gap: 12px; }
+        .row-hidden, .page-hidden { display: none !important; }
+
+        .pager-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; justify-content: space-between; }
+        .pager-bar select { padding: 4px 8px; }
+        .pager-arrow { padding: 5px 12px; font-size: 15px; line-height: 1; }
+
+        /* Compact table so the whole thing fits without horizontal scroll */
+        .tab-panel table {
+            font-size: 12px;
+        }
+        .tab-panel table th,
+        .tab-panel table td {
+            padding: 5px 7px;
+            line-height: 1.25;
+        }
+        .tab-panel table th {
+            white-space: normal;
+        }
+        .email-cell {
+            max-width: 130px;
+            word-break: break-all;
+        }
+        .email-cell .email-local {
+            display: block;
+        }
+        .email-cell .email-domain {
+            display: block;
+            color: var(--text-mid);
+            font-size: 11px;
+        }
+        .actions-cell .btn {
+            padding: 4px 8px;
+            font-size: 11px;
+        }
+    </style>
+</head>
+<body>
+<div th:replace="~{fragments/topbar :: admin('policies')}"></div>
+<div class="container">
+    <div class="card">
+        <h2>Policies by Insurer</h2>
+        <p class="small-note">One tab per insurer, mirroring the original tracking workbook. Each row shows the
+            policyholder and full policy detail together.</p>
+    </div>
+
+    <div class="card" th:if="${importResult}" style="color:#1e8e50;">
+        <span th:text="${importResult}"></span>
+    </div>
+    <div class="card" th:if="${importError}" style="color:#c62828;">
+        <span th:text="${importError}"></span>
+    </div>
+
+    <div class="card">
+        <input type="text" id="policySearch" placeholder="Search by name, policy no., phone, email, office tag..."
+               style="min-width:360px;" autocomplete="off" oninput="filterPolicies()">
+        <span id="matchCount" class="small-note" style="margin-left:10px;"></span>
+    </div>
+
+    <!-- Empty form living outside the tab panels; every row checkbox and the delete
+         button below reference it via form="bulkForm", so nothing needs nesting. -->
+    <form id="bulkForm" th:action="@{/admin/policies/bulk-delete}" method="post"
+          onsubmit="return confirm('Delete all selected policies? This cannot be undone.');"></form>
+
+    <div class="card" id="bulkBar">
+        <span id="selectedCount">0 selected</span>
+        <button class="btn btn-danger" type="submit" form="bulkForm">Delete Selected</button>
+    </div>
+
+    <div class="tab-bar" id="tabBar">
+        <button th:each="entry, iter : ${policiesByInsurer}"
+                type="button"
+                th:class="${iter.first} ? 'tab-btn active' : 'tab-btn'"
+                th:id="'tabbtn-' + ${iter.index}"
+                th:attr="onclick='showTab(' + ${iter.index} + ')', data-insurer=${entry.key}"
+                th:text="${entry.key} + ' (' + ${#lists.size(entry.value)} + ')'"></button>
+    </div>
+
+    <div th:each="entry, iter : ${policiesByInsurer}"
+         th:id="'tab-' + ${iter.index}"
+         th:class="${iter.first} ? 'tab-panel active' : 'tab-panel'">
+        <div class="table-scroll">
+            <table style="min-width: 0; width: 100%;">
+                <thead>
+                <tr>
+                    <th><input type="checkbox" class="selectAllTab" th:attr="onclick='toggleTab(' + ${iter.index} + ', this)'"></th>
+                    <th>SL</th><th>Name</th><th>Phone</th><th>Office Tag</th><th>Category</th>
+                    <th>Health Check-up / Vehicle Reg.</th><th>Plan Type</th><th>Policy Type</th>
+                    <th>Premium Frequency</th>
+                    <th>S.A./IDV</th><th>Premium</th><th>Start Date</th><th>Renewal Date</th>
+                    <th>Policy No.</th><th>Email</th><th>Status</th><th>Actions</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="p, pIter : ${entry.value}"
+                    th:attr="data-search=${#strings.toLowerCase(p.customer.fullName + ' ' + p.customer.phone + ' ' + (p.customer.email ?: '') + ' ' + (p.customer.officeTag ?: '') + ' ' + p.policyNumber)}">
+                    <td><input type="checkbox" name="ids" th:value="${p.id}" form="bulkForm"
+                               th:attr="data-tab=${iter.index}" class="rowCheck" onclick="updateBulkBar()"></td>
+                    <td th:text="${pIter.count}"></td>
+                    <td th:text="${p.customer.fullName}"></td>
+                    <td th:text="${p.customer.phone}"></td>
+                    <td th:text="${p.customer.officeTag ?: '-'}"></td>
+                    <td th:text="${p.category.label}"></td>
+                    <td th:text="${p.category.name() == 'MOTOR'} ? (${p.vehicleRegistrationNo} ?: '-') : (${p.healthCheckupNote} ?: '-')"></td>
+                    <td th:text="${p.planType ?: '-'}"></td>
+                    <td th:text="${p.policyType ?: '-'}"></td>
+                    <td th:text="${p.premiumFrequency != null ? p.premiumFrequency.label : '-'}"></td>
+                    <td th:text="${p.sumAssured ?: '-'}"></td>
+                    <td th:text="${p.premiumAmount}"></td>
+                    <td th:text="${p.startDate ?: '-'}"></td>
+                    <td th:text="${p.nextDueDate}"></td>
+                    <td th:text="${p.policyNumber}"></td>
+                    <td class="email-cell">
+                        <span class="email-local" th:text="${#strings.arraySplit(p.customer.email ?: '-@', '@')[0]}"></span>
+                        <span class="email-domain"
+                              th:if="${p.customer.email != null and #strings.contains(p.customer.email, '@')}"
+                              th:text="'@' + ${#strings.arraySplit(p.customer.email, '@')[1]}"></span>
+                    </td>
+                    <td>
+                        <span th:if="${p.paid}" class="badge badge-paid">Paid</span>
+                        <span th:if="${!p.paid and p.nextDueDate.isAfter(T(java.time.LocalDate).now().plusMonths(1))}" class="badge badge-paid">Paid</span>
+                        <span th:if="${!p.paid and !p.nextDueDate.isAfter(T(java.time.LocalDate).now().plusMonths(1)) and p.nextDueDate.isBefore(T(java.time.LocalDate).now())}" class="badge badge-overdue">Overdue</span>
+                        <span th:if="${!p.paid and !p.nextDueDate.isAfter(T(java.time.LocalDate).now().plusMonths(1)) and !p.nextDueDate.isBefore(T(java.time.LocalDate).now())}" class="badge badge-due">Pending</span>
+                    </td>
+                    <td class="actions-cell">
+                        <a class="btn btn-primary" th:href="@{/admin/policies/{id}/edit(id=${p.id})}">Edit</a>
+                        <a th:if="${p.policyDocFileName != null}" class="btn btn-secondary" target="_blank"
+                           th:href="@{/admin/policies/{id}/policy-doc(id=${p.id})}">Doc</a>
+                        <form class="inline" th:if="${!p.paid}"
+                              th:action="@{/admin/policies/{id}/mark-paid(id=${p.id},from='/admin/policies?tab=' + ${iter.index})}" method="post">
+                            <button class="btn btn-success" type="submit" title="Marks this premium as paid and immediately moves the due date to the next cycle">Already Paid</button>
+                        </form>
+                        <form class="inline" th:if="${p.paid}"
+                              th:action="@{/admin/policies/{id}/unmark-paid(id=${p.id},from='/admin/policies?tab=' + ${iter.index})}" method="post">
+                            <button class="btn btn-secondary" type="submit">Undo Paid</button>
+                        </form>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <p th:if="${#lists.isEmpty(entry.value)}">No policies under this insurer.</p>
+        <p class="small-note no-results-msg" style="display:none;">No policies match your search in this insurer.</p>
+    </div>
+
+    <div class="card pager-bar" id="policyPager" style="margin-top:10px;"></div>
+</div>
+
+<script>
+    let policyPageSize = 10;
+    const tabPageState = {}; // tabIndex -> current page (0-based)
+
+    function showTab(index) {
+        document.querySelectorAll('.tab-panel').forEach(function (el, i) {
+            el.classList.toggle('active', i === index);
+        });
+        document.querySelectorAll('.tab-btn').forEach(function (el, i) {
+            el.classList.toggle('active', i === index);
+        });
+        renderActiveTabPage();
+    }
+
+    function toggleTab(tabIndex, source) {
+        // Selects every row matching the current search in this tab, across ALL
+        // pages - not just the ones currently visible on this page.
+        document.querySelectorAll('.rowCheck[data-tab="' + tabIndex + '"]').forEach(cb => {
+            if (!cb.closest('tr').classList.contains('row-hidden')) cb.checked = source.checked;
+        });
+        updateBulkBar();
+    }
+
+    function updateBulkBar() {
+        const checked = document.querySelectorAll('.rowCheck:checked');
+        document.getElementById('bulkBar').style.display = checked.length > 0 ? 'flex' : 'none';
+        document.getElementById('selectedCount').textContent = checked.length + ' selected';
+
+        document.querySelectorAll('.selectAllTab').forEach((sa, tabIndex) => {
+            const tabRows = document.querySelectorAll('.rowCheck[data-tab="' + tabIndex + '"]');
+            const tabChecked = document.querySelectorAll('.rowCheck[data-tab="' + tabIndex + '"]:checked');
+            sa.checked = tabRows.length > 0 && tabChecked.length === tabRows.length;
+            sa.indeterminate = tabChecked.length > 0 && tabChecked.length < tabRows.length;
+        });
+    }
+
+    function filterPolicies() {
+        const query = document.getElementById('policySearch').value.trim().toLowerCase();
+        const panels = document.querySelectorAll('.tab-panel');
+        let totalMatches = 0;
+        let firstMatchingTabIndex = -1;
+
+        panels.forEach(function (panel, tabIndex) {
+            const rows = panel.querySelectorAll('tbody tr');
+            let tabMatches = 0;
+
+            rows.forEach(function (row) {
+                const haystack = row.getAttribute('data-search') || '';
+                const matches = query === '' || haystack.indexOf(query) !== -1;
+                row.classList.toggle('row-hidden', !matches);
+                if (matches) tabMatches++;
+            });
+
+            totalMatches += tabMatches;
+            if (tabMatches > 0 && firstMatchingTabIndex === -1) firstMatchingTabIndex = tabIndex;
+
+            const noResultsMsg = panel.querySelector('.no-results-msg');
+            if (noResultsMsg) {
+                noResultsMsg.style.display = (query !== '' && tabMatches === 0 && rows.length > 0) ? 'block' : 'none';
+            }
+
+            const tabBtn = document.getElementById('tabbtn-' + tabIndex);
+            const insurerName = tabBtn.getAttribute('data-insurer');
+            tabBtn.textContent = insurerName + ' (' + tabMatches + (query !== '' ? '/' + rows.length : '') + ')';
+            tabBtn.classList.toggle('no-match', query !== '' && tabMatches === 0);
+
+            // Searching changes which rows match, so reset that tab back to page 1.
+            tabPageState[tabIndex] = 0;
+        });
+
+        document.getElementById('matchCount').textContent =
+            query !== '' ? totalMatches + ' matching polic' + (totalMatches === 1 ? 'y' : 'ies') : '';
+
+        // If the currently active tab has no matches but another tab does, switch to it.
+        const activePanel = document.querySelector('.tab-panel.active');
+        const activeVisibleRows = activePanel.querySelectorAll('tbody tr:not(.row-hidden)').length;
+        if (query !== '' && activeVisibleRows === 0 && firstMatchingTabIndex !== -1) {
+            showTab(firstMatchingTabIndex); // also calls renderActiveTabPage()
+        } else {
+            renderActiveTabPage();
+        }
+
+        updateBulkBar();
+    }
+
+    // Paginates only the ACTIVE tab's search-matching rows. Rows hidden by the search
+    // filter (.row-hidden) stay hidden regardless of page; rows hidden only because
+    // they're off the current page get .page-hidden instead, so "select all in this
+    // insurer" (toggleTab) can still reach them even when they're off-screen.
+    function renderActiveTabPage() {
+        const activePanel = document.querySelector('.tab-panel.active');
+        if (!activePanel) return;
+        const tabIndex = activePanel.id.replace('tab-', '');
+        if (tabPageState[tabIndex] === undefined) tabPageState[tabIndex] = 0;
+
+        const matchingRows = Array.from(activePanel.querySelectorAll('tbody tr'))
+            .filter(r => !r.classList.contains('row-hidden'));
+        const totalPages = Math.max(1, Math.ceil(matchingRows.length / policyPageSize));
+        tabPageState[tabIndex] = Math.max(0, Math.min(tabPageState[tabIndex], totalPages - 1));
+        const start = tabPageState[tabIndex] * policyPageSize;
+        const end = start + policyPageSize;
+
+        matchingRows.forEach((row, i) => {
+            row.classList.toggle('page-hidden', !(i >= start && i < end));
+        });
+
+        const controls = document.getElementById('policyPager');
+        controls.innerHTML = `
+            <div class="pager-bar">
+                <label class="small-note" style="margin-right:6px;">Rows per page:</label>
+                <select class="pager-size">
+                    ${[10, 20, 30, 50].map(n => `<option value="${n}" ${n === policyPageSize ? 'selected' : ''}>${n}</option>`).join('')}
+                </select>
+            </div>
+            <span class="small-note">Page ${matchingRows.length ? tabPageState[tabIndex] + 1 : 0} of ${totalPages} (${matchingRows.length} polic${matchingRows.length === 1 ? 'y' : 'ies'})</span>
+            <div class="pager-bar">
+                <button type="button" class="btn btn-secondary pager-arrow pager-first" ${tabPageState[tabIndex] === 0 ? 'disabled' : ''} title="First page">&laquo;</button>
+                <button type="button" class="btn btn-secondary pager-arrow pager-prev" ${tabPageState[tabIndex] === 0 ? 'disabled' : ''} title="Previous page">&larr;</button>
+                <button type="button" class="btn btn-secondary pager-arrow pager-next" ${tabPageState[tabIndex] >= totalPages - 1 ? 'disabled' : ''} title="Next page">&rarr;</button>
+                <button type="button" class="btn btn-secondary pager-arrow pager-last" ${tabPageState[tabIndex] >= totalPages - 1 ? 'disabled' : ''} title="Last page">&raquo;</button>
+            </div>
+        `;
+
+        controls.querySelector('.pager-size').addEventListener('change', function () {
+            policyPageSize = parseInt(this.value, 10);
+            tabPageState[tabIndex] = 0;
+            renderActiveTabPage();
+        });
+        controls.querySelector('.pager-first').addEventListener('click', function () { tabPageState[tabIndex] = 0; renderActiveTabPage(); });
+        controls.querySelector('.pager-prev').addEventListener('click', function () { tabPageState[tabIndex]--; renderActiveTabPage(); });
+        controls.querySelector('.pager-next').addEventListener('click', function () { tabPageState[tabIndex]++; renderActiveTabPage(); });
+        controls.querySelector('.pager-last').addEventListener('click', function () { tabPageState[tabIndex] = totalPages - 1; renderActiveTabPage(); });
+    }
+
+    // Restore the tab we were on before an Already Paid / Undo Paid submit (carried
+    // via ?tab=<index> on the redirect), instead of always resetting to the first tab.
+    const urlParams = new URLSearchParams(window.location.search);
+    const requestedTab = parseInt(urlParams.get('tab'), 10);
+    if (!isNaN(requestedTab) && document.getElementById('tab-' + requestedTab)) {
+        showTab(requestedTab);
+    } else {
+        renderActiveTabPage();
+    }
+</script>
+</body>
+</html>

@@ -14,9 +14,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Sends email via the Resend HTTP API instead of raw SMTP.
- * Railway blocks outbound SMTP (ports 25/465/587) on Free/Trial/Hobby plans,
- * so we go over HTTPS instead — this works on any plan/host.
+ * Sends email via the Resend HTTP API instead of raw SMTP (Railway blocks outbound
+ * SMTP ports on Free/Trial/Hobby plans, so we go over HTTPS instead).
  */
 @Service
 @Slf4j

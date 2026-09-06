@@ -11,7 +11,9 @@ public interface CustomerRelativeRepository extends JpaRepository<CustomerRelati
     List<CustomerRelative> findByCustomerId(Long customerId);
 
     // Eager-fetch the linked customer so the admin list page can show the
-    // policyholder's name/policy number without an N+1 per row
+    // policyholder's name without an N+1 per row
     @Query("SELECT r FROM CustomerRelative r JOIN FETCH r.customer ORDER BY r.fullName")
     List<CustomerRelative> findAllWithCustomer();
+
+    boolean existsByCustomerIdAndFullNameIgnoreCaseAndPhone(Long customerId, String fullName, String phone);
 }

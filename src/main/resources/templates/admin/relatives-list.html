@@ -4,38 +4,68 @@
     <meta charset="UTF-8">
     <title>Relatives - KFS Premium Reminder</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        #bulkBar { display: none; align-items: center; gap: 12px; }
+        .pager-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; justify-content: space-between; }
+        .pager-bar select { padding: 4px 8px; }
+        .pager-arrow { padding: 5px 12px; font-size: 15px; line-height: 1; }
+    </style>
 </head>
 <body>
-<div class="topbar">
-    <div class="brand">
-        <img th:src="@{/images/logo.png}" alt="KFS">
-        <strong>Premium Reminder — Admin</strong>
-    </div>
-    <div>
-        <a th:href="@{/admin/dashboard}">Dashboard</a>
-        <a th:href="@{/admin/birthdays}">Birthdays</a>
-        <a th:href="@{/admin/relatives}">Relatives</a>
-        <a th:href="@{/logout}">Logout</a>
-    </div>
-</div>
+<div th:replace="~{fragments/topbar :: admin('relatives')}"></div>
 <div class="container">
     <div class="card">
         <a class="btn btn-primary" th:href="@{/admin/relatives/new}">Add Relative</a>
+
+        <form th:action="@{/admin/relatives/import}" method="post" enctype="multipart/form-data" class="inline" style="margin-left: 12px;">
+            <input type="file" name="file" accept=".xlsx" required>
+            <button class="btn btn-secondary" type="submit">Import from Excel</button>
+        </form>
     </div>
-    <table>
+
+    <div class="card" th:if="${relativeImportResult}" style="color:#1e8e50;">
+        <p>
+            Imported <span th:text="${relativeImportResult.imported}"></span> relative(s).
+            Skipped <span th:text="${relativeImportResult.skippedSelf}"></span> "Self" row(s),
+            <span th:text="${relativeImportResult.skippedIncompleteRow}"></span> incomplete row(s),
+            <span th:text="${relativeImportResult.skippedDuplicate}"></span> duplicate(s),
+            and <span th:text="${relativeImportResult.skippedNoMatch}"></span> row(s) with no matching customer.
+        </p>
+        <p th:if="${!#lists.isEmpty(relativeImportResult.unmatchedProposers)}">
+            Unmatched proposer names: <span th:text="${#strings.listJoin(relativeImportResult.unmatchedProposers, ', ')}"></span>
+        </p>
+    </div>
+
+    <div class="card" th:if="${importError}" style="color:#c62828;">
+        <span th:text="${importError}"></span>
+    </div>
+    <div class="card" th:if="${wishSent}" style="color:#1e8e50;">
+        <span th:text="${wishSent}"></span>
+    </div>
+
+    <!-- Empty form living outside the table; checkboxes and the delete button below
+         reference it via form="bulkForm" so nothing needs to be nested inside it. -->
+    <form id="bulkForm" th:action="@{/admin/relatives/bulk-delete}" method="post"
+          onsubmit="return confirm('Delete all selected relatives? This cannot be undone.');"></form>
+
+    <div class="card" id="bulkBar" style="display:none; align-items:center; gap:12px;">
+        <span id="selectedCount">0 selected</span>
+        <button class="btn btn-danger" type="submit" form="bulkForm">Delete Selected</button>
+    </div>
+
+    <table id="relativesTable">
         <thead>
         <tr>
+            <th><input type="checkbox" id="selectAll" onclick="toggleAll(this)"></th>
             <th>Name</th><th>Relation</th><th>Policyholder</th><th>DOB</th><th>Email</th><th>Phone</th><th>Actions</th>
         </tr>
         </thead>
         <tbody>
         <tr th:each="r : ${relatives}">
+            <td><input type="checkbox" name="ids" th:value="${r.id}" form="bulkForm" class="rowCheck" onclick="updateBulkBar()"></td>
             <td th:text="${r.fullName}"></td>
             <td th:text="${r.relation ?: '-'}"></td>
-            <td>
-                <span th:text="${r.customer.fullName}"></span>
-                <span th:text="'(' + ${r.customer.policyNumber} + ')'" style="color:var(--text-mid); font-size:12px;"></span>
-            </td>
+            <td th:text="${r.customer.fullName}"></td>
             <td th:text="${r.dateOfBirth}"></td>
             <td th:text="${r.email}"></td>
             <td th:text="${r.phone}"></td>
@@ -49,6 +79,78 @@
         </tr>
         </tbody>
     </table>
+
+    <div class="card pager-bar" id="relativesPager" style="margin-top:10px;"></div>
 </div>
+
+<script>
+    function toggleAll(source) {
+        document.querySelectorAll('.rowCheck').forEach(cb => cb.checked = source.checked);
+        updateBulkBar();
+    }
+    function updateBulkBar() {
+        const checked = document.querySelectorAll('.rowCheck:checked').length;
+        const total = document.querySelectorAll('.rowCheck').length;
+        const bar = document.getElementById('bulkBar');
+        const selectAll = document.getElementById('selectAll');
+        bar.style.display = checked > 0 ? 'flex' : 'none';
+        document.getElementById('selectedCount').textContent = checked + ' selected';
+        selectAll.checked = checked > 0 && checked === total;
+        selectAll.indeterminate = checked > 0 && checked < total;
+    }
+
+    // Client-side pager: only hides rows visually (via style.display), never removes
+    // them, so checked checkboxes on off-page rows still submit with the bulk form.
+    function setupPager(tableId, controlsId, defaultSize) {
+        const rows = Array.from(document.querySelectorAll('#' + tableId + ' tbody tr'));
+        const controls = document.getElementById(controlsId);
+        let pageSize = defaultSize;
+        let currentPage = 0;
+
+        function totalPages() {
+            return Math.max(1, Math.ceil(rows.length / pageSize));
+        }
+
+        function render() {
+            const tp = totalPages();
+            currentPage = Math.max(0, Math.min(currentPage, tp - 1));
+            const start = currentPage * pageSize;
+            const end = start + pageSize;
+            rows.forEach((row, i) => {
+                row.style.display = (i >= start && i < end) ? '' : 'none';
+            });
+
+            controls.innerHTML = `
+                <div class="pager-bar">
+                    <label class="small-note" style="margin-right:6px;">Rows per page:</label>
+                    <select class="pager-size">
+                        ${[10, 20, 30, 50].map(n => `<option value="${n}" ${n === pageSize ? 'selected' : ''}>${n}</option>`).join('')}
+                    </select>
+                </div>
+                <span class="small-note">Page ${rows.length ? currentPage + 1 : 0} of ${tp} (${rows.length} total)</span>
+                <div class="pager-bar">
+                    <button type="button" class="btn btn-secondary pager-arrow pager-first" ${currentPage === 0 ? 'disabled' : ''} title="First page">&laquo;</button>
+                    <button type="button" class="btn btn-secondary pager-arrow pager-prev" ${currentPage === 0 ? 'disabled' : ''} title="Previous page">&larr;</button>
+                    <button type="button" class="btn btn-secondary pager-arrow pager-next" ${currentPage >= tp - 1 ? 'disabled' : ''} title="Next page">&rarr;</button>
+                    <button type="button" class="btn btn-secondary pager-arrow pager-last" ${currentPage >= tp - 1 ? 'disabled' : ''} title="Last page">&raquo;</button>
+                </div>
+            `;
+
+            controls.querySelector('.pager-size').addEventListener('change', function () {
+                pageSize = parseInt(this.value, 10);
+                currentPage = 0;
+                render();
+            });
+            controls.querySelector('.pager-first').addEventListener('click', function () { currentPage = 0; render(); });
+            controls.querySelector('.pager-prev').addEventListener('click', function () { currentPage--; render(); });
+            controls.querySelector('.pager-next').addEventListener('click', function () { currentPage++; render(); });
+            controls.querySelector('.pager-last').addEventListener('click', function () { currentPage = totalPages() - 1; render(); });
+        }
+
+        render();
+    }
+
+    setupPager('relativesTable', 'relativesPager', 20);
+</script>
 </body>
 </html>

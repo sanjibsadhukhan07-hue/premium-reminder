@@ -19,8 +19,12 @@ public class ReminderLog {
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "customer_id", nullable = false)
-    private Customer customer;
+    @JoinColumn(name = "policy_id", nullable = false)
+    private Policy policy;
+
+    // Denormalized so log rows stay readable even if a policy is later deleted
+    private String customerName;
+    private String policyNumber;
 
     @Enumerated(EnumType.STRING)
     private Channel channel;
@@ -30,9 +34,15 @@ public class ReminderLog {
     @Column(length = 1000)
     private String detail;
 
+    // The actual phone number the message was sent to, when channel = WHATSAPP (the
+    // customer's effective WhatsApp number - see NotificationService.effectiveWhatsAppNumber).
+    // Null for EMAIL rows.
+    private String phone;
+
     private LocalDateTime sentAt = LocalDateTime.now();
 
+    // SMS removed per requirement - WhatsApp and Email only
     public enum Channel {
-        EMAIL, SMS, WHATSAPP
+        EMAIL, WHATSAPP
     }
 }

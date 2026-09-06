@@ -3,10 +3,15 @@ package com.premiumreminder.controller;
 import com.premiumreminder.model.CustomerRelative;
 import com.premiumreminder.repository.CustomerRelativeRepository;
 import com.premiumreminder.service.CustomerService;
+import com.premiumreminder.service.RelativeImportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import java.util.List;
 
 @Controller
 @RequestMapping("/admin/relatives")
@@ -15,6 +20,7 @@ public class RelativeController {
 
     private final CustomerRelativeRepository relativeRepository;
     private final CustomerService customerService;
+    private final RelativeImportService relativeImportService;
 
     @GetMapping
     public String list(Model model) {
@@ -43,10 +49,16 @@ public class RelativeController {
     }
 
     @PostMapping("/save")
-    public String save(@ModelAttribute CustomerRelative formRelative, @RequestParam Long customerId) {
+    public String save(@ModelAttribute CustomerRelative formRelative, @RequestParam Long customerId,
+                       RedirectAttributes redirectAttributes) {
+        if (formRelative.getId() == null &&
+                relativeRepository.existsByCustomerIdAndFullNameIgnoreCaseAndPhone(
+                        customerId, formRelative.getFullName(), formRelative.getPhone())) {
+            redirectAttributes.addFlashAttribute("importError",
+                    "Duplicate relative: " + formRelative.getFullName() + " with this phone number already exists for this policyholder.");
+            return "redirect:/admin/relatives";
+        }
         formRelative.setCustomer(customerService.findById(customerId));
-        // createdAt is @Column(updatable = false), so Hibernate skips it on UPDATE even
-        // though the unbound form object arrives with a fresh LocalDateTime.now() default
         relativeRepository.save(formRelative);
         return "redirect:/admin/relatives";
     }
@@ -54,6 +66,34 @@ public class RelativeController {
     @PostMapping("/{id}/delete")
     public String delete(@PathVariable Long id) {
         relativeRepository.deleteById(id);
+        return "redirect:/admin/relatives";
+    }
+
+    @PostMapping("/import")
+    public String importRelatives(@RequestParam("file") MultipartFile file,
+                                  RedirectAttributes redirectAttributes) {
+        if (file.isEmpty()) {
+            redirectAttributes.addFlashAttribute("importError", "Please choose an Excel (.xlsx) file to upload.");
+            return "redirect:/admin/relatives";
+        }
+        try {
+            RelativeImportService.ImportResult result = relativeImportService.importFromExcel(file);
+            redirectAttributes.addFlashAttribute("relativeImportResult", result);
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("importError", "Import failed: " + e.getMessage());
+        }
+        return "redirect:/admin/relatives";
+    }
+
+    @PostMapping("/bulk-delete")
+    public String bulkDelete(@RequestParam(value = "ids", required = false) List<Long> ids,
+                             RedirectAttributes redirectAttributes) {
+        if (ids == null || ids.isEmpty()) {
+            redirectAttributes.addFlashAttribute("importError", "No relatives were selected.");
+            return "redirect:/admin/relatives";
+        }
+        relativeRepository.deleteAllById(ids);
+        redirectAttributes.addFlashAttribute("wishSent", "Deleted " + ids.size() + " relative(s).");
         return "redirect:/admin/relatives";
     }
 }

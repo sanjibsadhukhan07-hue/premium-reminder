@@ -4,27 +4,19 @@
     <meta charset="UTF-8">
     <title>Birthdays - KFS Premium Reminder</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        .pager-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; justify-content: space-between; }
+        .pager-bar select { padding: 4px 8px; }
+        .pager-arrow { padding: 5px 12px; font-size: 15px; line-height: 1; }
+    </style>
 </head>
 <body>
-<div class="topbar">
-    <div class="brand">
-        <img th:src="@{/images/logo.png}" alt="KFS">
-        <strong>Premium Reminder — Admin</strong>
-    </div>
-    <div>
-        <a th:href="@{/admin/dashboard}">Dashboard</a>
-        <a th:href="@{/admin/customers/new}">Add Customer</a>
-        <a th:href="@{/admin/birthdays}">Birthdays</a>
-        <a th:href="@{/admin/relatives}">Relatives</a>
-        <a th:href="@{/admin/reminder-logs}">Reminder Logs</a>
-        <a th:href="@{/logout}">Logout</a>
-    </div>
-</div>
+<div th:replace="~{fragments/topbar :: admin('birthdays')}"></div>
 <div class="container">
-    <div class="card" th:if="${wishSent}" style="color:#69f0ae;">
+    <div class="card" th:if="${wishSent}" style="color:#1e8e50;">
         <span th:text="${wishSent}"></span>
     </div>
-    <div class="card" th:if="${wishError}" style="color:#ff8a80;">
+    <div class="card" th:if="${wishError}" style="color:#c0392b;">
         <span th:text="${wishError}"></span>
     </div>
 
@@ -33,6 +25,7 @@
         birthday(s) today
         (<span th:text="${#lists.size(birthdaysToday)}">0</span> policyholder(s),
         <span th:text="${#lists.size(relativeBirthdaysToday)}">0</span> relative(s)).
+        Wishes are also sent automatically every day at 10:00 AM IST.
         <form th:action="@{/admin/run-birthday-wishes-now}" method="post" style="display:inline">
             <button class="btn btn-primary" type="submit">Send today's birthday wishes now</button>
         </form>
@@ -40,7 +33,7 @@
 
     <div class="card">
         <h3>Policyholders</h3>
-        <table>
+        <table id="policyholderTable">
             <thead>
             <tr>
                 <th>Name</th><th>Date of Birth</th><th>Next Birthday</th><th>Email</th><th>Phone</th><th>Actions</th>
@@ -61,11 +54,12 @@
             </tr>
             </tbody>
         </table>
+        <div class="pager-bar" id="policyholderPager" style="margin-top:10px;"></div>
     </div>
 
     <div class="card">
         <h3>Relatives</h3>
-        <table>
+        <table id="relativeBirthdayTable">
             <thead>
             <tr>
                 <th>Name</th><th>Relation</th><th>Policyholder</th><th>Date of Birth</th>
@@ -78,7 +72,6 @@
                 <td th:text="${e.relative.relation ?: '-'}"></td>
                 <td>
                     <span th:text="${e.relative.customer.fullName}"></span>
-                    <span th:text="'(' + ${e.relative.customer.policyNumber} + ')'" style="color:var(--text-mid); font-size:12px;"></span>
                 </td>
                 <td th:text="${e.relative.dateOfBirth}"></td>
                 <td th:text="${e.nextBirthday}"></td>
@@ -92,7 +85,65 @@
             </tr>
             </tbody>
         </table>
+        <div class="pager-bar" id="relativePager" style="margin-top:10px;"></div>
     </div>
 </div>
+
+<script>
+    // Reusable client-side pager: hides/shows <tr> elements in a tbody based on the
+    // current page and page size, without ever removing them from the DOM (so any
+    // per-row forms/state stay intact when navigating between pages).
+    function setupPager(tableId, controlsId, defaultSize) {
+        const rows = Array.from(document.querySelectorAll('#' + tableId + ' tbody tr'));
+        const controls = document.getElementById(controlsId);
+        let pageSize = defaultSize;
+        let currentPage = 0;
+
+        function totalPages() {
+            return Math.max(1, Math.ceil(rows.length / pageSize));
+        }
+
+        function render() {
+            const tp = totalPages();
+            currentPage = Math.max(0, Math.min(currentPage, tp - 1));
+            const start = currentPage * pageSize;
+            const end = start + pageSize;
+            rows.forEach((row, i) => {
+                row.style.display = (i >= start && i < end) ? '' : 'none';
+            });
+
+            controls.innerHTML = `
+                <div class="pager-bar">
+                    <label class="small-note" style="margin-right:6px;">Rows per page:</label>
+                    <select class="pager-size">
+                        ${[10, 20, 30, 50].map(n => `<option value="${n}" ${n === pageSize ? 'selected' : ''}>${n}</option>`).join('')}
+                    </select>
+                </div>
+                <span class="small-note">Page ${rows.length ? currentPage + 1 : 0} of ${tp} (${rows.length} total)</span>
+                <div class="pager-bar">
+                    <button type="button" class="btn btn-secondary pager-arrow pager-first" ${currentPage === 0 ? 'disabled' : ''} title="First page">&laquo;</button>
+                    <button type="button" class="btn btn-secondary pager-arrow pager-prev" ${currentPage === 0 ? 'disabled' : ''} title="Previous page">&larr;</button>
+                    <button type="button" class="btn btn-secondary pager-arrow pager-next" ${currentPage >= tp - 1 ? 'disabled' : ''} title="Next page">&rarr;</button>
+                    <button type="button" class="btn btn-secondary pager-arrow pager-last" ${currentPage >= tp - 1 ? 'disabled' : ''} title="Last page">&raquo;</button>
+                </div>
+            `;
+
+            controls.querySelector('.pager-size').addEventListener('change', function () {
+                pageSize = parseInt(this.value, 10);
+                currentPage = 0;
+                render();
+            });
+            controls.querySelector('.pager-first').addEventListener('click', function () { currentPage = 0; render(); });
+            controls.querySelector('.pager-prev').addEventListener('click', function () { currentPage--; render(); });
+            controls.querySelector('.pager-next').addEventListener('click', function () { currentPage++; render(); });
+            controls.querySelector('.pager-last').addEventListener('click', function () { currentPage = totalPages() - 1; render(); });
+        }
+
+        render();
+    }
+
+    setupPager('policyholderTable', 'policyholderPager', 20);
+    setupPager('relativeBirthdayTable', 'relativePager', 20);
+</script>
 </body>
 </html>

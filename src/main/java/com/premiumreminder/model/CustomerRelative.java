@@ -39,12 +39,14 @@ public class CustomerRelative {
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate dateOfBirth;
 
-    @NotBlank
     @Email
     private String email;
 
-    @NotBlank
-    private String phone; // E.164, e.g. +9198XXXXXXXX - sent to directly via MSG91
+    private String phone; // E.164, e.g. +9198XXXXXXXX
+
+    // "ENGLISH", "HINDI", or "BENGALI" - drives which pre-approved WhatsApp template
+    // language variant is used when sending this relative birthday wishes.
+    private String messageLanguage = "ENGLISH";
 
     @Column(updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();

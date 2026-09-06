@@ -32,4 +32,9 @@ public class User {
     private Customer customer;
 
     private boolean enabled = true;
+
+    // True for every newly-created login (the seeded admin account, or a customer
+    // login created via CustomerLoginService) since they start on a temporary/default
+    // password. Cleared the first time the user successfully changes their password.
+    private boolean mustChangePassword = true;
 }

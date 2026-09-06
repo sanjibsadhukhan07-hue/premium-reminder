@@ -1,10 +1,125 @@
 <!DOCTYPE html>
-<html lang="en">
+<html xmlns:th="http://www.thymeleaf.org">
 <head>
-  <meta charset="UTF-8">
-  <title>$Title$</title>
+    <meta charset="UTF-8">
+    <title>Policy - KFS Premium Reminder</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
 </head>
 <body>
-$END$
+<div th:replace="~{fragments/topbar :: admin('add-policy')}"></div>
+<div class="container">
+    <div class="card">
+        <h2 th:text="${policy.id != null} ? 'Edit Policy' : 'Add Policy'"></h2>
+        <p><strong>Policyholder:</strong>
+            <span th:if="${policy.customer != null}" th:text="${policy.customer.fullName}"></span>
+        </p>
+        <form th:action="@{/admin/policies/save}"
+              th:object="${policy}" method="post" enctype="multipart/form-data" class="form-grid">
+            <input type="hidden" th:field="*{id}">
+
+            <div th:if="${policy.customer == null}">
+                <label>Policyholder</label>
+                <select name="customerId" required>
+                    <option value="">-- select customer --</option>
+                    <option th:each="c : ${customers}" th:value="${c.id}" th:text="${c.fullName}"></option>
+                </select>
+            </div>
+            <input th:if="${policy.customer != null}" type="hidden" name="customerId" th:value="${policy.customer.id}">
+
+            <div>
+                <label>Category</label>
+                <select id="category" th:field="*{category}" onchange="toggleCategoryFields()" required>
+                    <option th:each="cat : ${T(com.premiumreminder.model.PolicyCategory).values()}"
+                            th:value="${cat}" th:text="${cat.label}"></option>
+                </select>
+            </div>
+            <div>
+                <label>Insurer</label>
+                <input type="text" th:field="*{insurerName}" placeholder="e.g. HDFC, TATA AIG, NIC">
+            </div>
+            <div>
+                <label>Policy Number</label>
+                <input type="text" th:field="*{policyNumber}" required>
+            </div>
+            <div>
+                <label>Plan Type</label>
+                <input type="text" th:field="*{planType}" placeholder="e.g. FAMILY, INDIVIDUAL">
+            </div>
+            <div>
+                <label>Policy Type</label>
+                <input type="text" th:field="*{policyType}" placeholder="e.g. SECURE, RESTORE, PREMIER">
+            </div>
+            <div>
+                <label>Sum Assured / IDV</label>
+                <input type="number" step="0.01" th:field="*{sumAssured}">
+            </div>
+            <div id="healthField">
+                <label>Health Check-up Note</label>
+                <input type="text" th:field="*{healthCheckupNote}" placeholder="e.g. 2.5K EVERY YEAR">
+            </div>
+            <div id="motorField">
+                <label>Vehicle Registration No.</label>
+                <input type="text" th:field="*{vehicleRegistrationNo}" placeholder="e.g. WB-16-AV-1309">
+            </div>
+            <div>
+                <label>Premium Amount</label>
+                <input type="number" step="0.01" th:field="*{premiumAmount}" required>
+            </div>
+            <div>
+                <label>Start Date</label>
+                <input type="date" th:field="*{startDate}">
+            </div>
+            <div>
+                <label>Renewal / Next Due Date</label>
+                <input type="date" th:field="*{nextDueDate}" required>
+            </div>
+            <div>
+                <label>Premium Frequency</label>
+                <select th:field="*{premiumFrequency}" required>
+                    <option th:each="freq : ${T(com.premiumreminder.model.PremiumFrequency).values()}"
+                            th:value="${freq}" th:text="${freq.label}"></option>
+                </select>
+            </div>
+            <div>
+                <label>Reminder Window (days before AND after due date)</label>
+                <input type="number" th:field="*{reminderWindowDays}">
+            </div>
+            <div>
+                <label>Already Paid</label>
+                <input type="checkbox" th:field="*{paid}">
+            </div>
+            <div>
+                <label>Active</label>
+                <input type="checkbox" th:field="*{active}">
+            </div>
+
+            <div style="grid-column: span 2; margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--border);">
+                <label>Policy Document (PDF only)</label>
+                <p th:if="${policy.policyDocFileName != null}" style="margin: 6px 0 10px;">
+                    Current file: <span th:text="${policy.policyDocFileName}"></span>
+                    <a th:href="@{/admin/policies/{id}/policy-doc(id=${policy.id})}" target="_blank">(view)</a>
+                </p>
+                <input type="file" name="policyDoc" accept="application/pdf,.pdf">
+                <p style="margin-top: 6px; color: var(--text-mid); font-size: 13px;">
+                    <span th:if="${policy.policyDocFileName != null}">Leave blank to keep the existing document.</span>
+                    <span th:unless="${policy.policyDocFileName != null}">Optional — you can also add this later.</span>
+                </p>
+            </div>
+
+            <div style="grid-column: span 2;">
+                <button class="btn btn-primary" type="submit">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function toggleCategoryFields() {
+        var category = document.getElementById('category').value;
+        document.getElementById('healthField').style.display = (category === 'HEALTH') ? '' : 'none';
+        document.getElementById('motorField').style.display = (category === 'MOTOR') ? '' : 'none';
+    }
+    toggleCategoryFields();
+</script>
 </body>
 </html>

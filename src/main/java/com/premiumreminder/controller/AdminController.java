@@ -1,43 +1,78 @@
 package com.premiumreminder.controller;
 
 import com.premiumreminder.model.Customer;
+import com.premiumreminder.model.Policy;
+import com.premiumreminder.repository.BirthdayLogRepository;
 import com.premiumreminder.repository.ReminderLogRepository;
 import com.premiumreminder.scheduler.PremiumReminderScheduler;
 import com.premiumreminder.service.BirthdayWishService;
 import com.premiumreminder.service.CustomerLoginService;
 import com.premiumreminder.service.CustomerService;
-import com.premiumreminder.service.CustomerService.CsvImportResult;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.multipart.MultipartFile;
+import com.premiumreminder.service.PolicyService;
+import com.premiumreminder.service.PolicyService.ExcelImportResult;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import java.io.IOException;
+import java.util.Comparator;
+import java.util.List;
 
 @Controller
 @RequestMapping("/admin")
 @RequiredArgsConstructor
 public class AdminController {
 
+    private static final List<Integer> ALLOWED_PAGE_SIZES = List.of(10, 20, 30, 50);
+    private static final int DEFAULT_PAGE_SIZE = 20;
+
     private final CustomerService customerService;
+    private final PolicyService policyService;
     private final ReminderLogRepository reminderLogRepository;
     private final PremiumReminderScheduler scheduler;
     private final CustomerLoginService customerLoginService;
     private final BirthdayWishService birthdayWishService;
+    private final BirthdayLogRepository birthdayLogRepository;
+
+    /**
+     * Dashboard: policyholders sorted by their nearest upcoming/overdue premium due
+     * date across all their active policies (soonest/most overdue first). Search (q)
+     * filters by name/policy number/email/phone.
+     */
 
     @GetMapping("/dashboard")
-    public String dashboard(@RequestParam(name = "q", required = false) String q, Model model) {
-        model.addAttribute("customers", customerService.search(q));
-        model.addAttribute("dueToday", customerService.findDueForReminderToday());
+    public String dashboard(@RequestParam(name = "q", required = false) String q,
+                            @RequestParam(name = "page", defaultValue = "0") int page,
+                            @RequestParam(name = "size", defaultValue = "20") int size,
+                            @RequestParam(name = "fragment", required = false) boolean fragment,
+                            Model model) {
+        int pageSize = ALLOWED_PAGE_SIZES.contains(size) ? size : DEFAULT_PAGE_SIZE;
+
+        List<Customer> allCustomers = customerService.search(q);
+        allCustomers.sort(Comparator.comparing(
+                Customer::getEarliestDueDate,
+                Comparator.nullsLast(Comparator.naturalOrder())));
+
+        int totalCustomers = allCustomers.size();
+        int totalPages = (int) Math.ceil((double) totalCustomers / pageSize);
+        int currentPage = Math.max(0, Math.min(page, Math.max(totalPages - 1, 0)));
+        int fromIndex = currentPage * pageSize;
+        int toIndex = Math.min(fromIndex + pageSize, totalCustomers);
+        List<Customer> pageCustomers = fromIndex < toIndex ? allCustomers.subList(fromIndex, toIndex) : List.of();
+
+        model.addAttribute("customers", pageCustomers);
+        model.addAttribute("dueTodayCount", policyService.findDueForReminderToday().size());
         model.addAttribute("q", q);
-        return "admin/dashboard";
+        model.addAttribute("currentPage", currentPage);
+        model.addAttribute("totalPages", totalPages);
+        model.addAttribute("totalCustomers", totalCustomers);
+        model.addAttribute("pageSize", pageSize);
+
+        return fragment ? "admin/dashboard :: resultsContainer" : "admin/dashboard";
     }
 
     @GetMapping("/customers/new")
@@ -50,11 +85,11 @@ public class AdminController {
     public String importCustomers(@RequestParam("file") MultipartFile file,
                                   RedirectAttributes redirectAttributes) {
         if (file.isEmpty()) {
-            redirectAttributes.addFlashAttribute("importError", "Please choose a CSV file to upload.");
+            redirectAttributes.addFlashAttribute("importError", "Please choose an Excel (.xlsx) file to upload.");
             return "redirect:/admin/dashboard";
         }
         try {
-            CsvImportResult result = customerService.importFromCsv(file);
+            ExcelImportResult result = policyService.importFromExcel(file);
             redirectAttributes.addFlashAttribute("importResult", result);
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("importError", "Import failed: " + e.getMessage());
@@ -68,31 +103,15 @@ public class AdminController {
         return "admin/customer-form";
     }
 
-    // Single form now handles create/update AND an optional policy doc upload
-    // in the same submit (multipart), so the doc no longer requires a second
-    // "save first, then upload" step.
     @PostMapping("/customers/save")
-    public String saveCustomer(@Valid @ModelAttribute("customer") Customer customer,
-                               BindingResult result,
-                               @RequestParam(value = "policyDoc", required = false) MultipartFile policyDoc,
+    public String saveCustomer(@Valid @ModelAttribute("customer") Customer customer, BindingResult result,
                                RedirectAttributes redirectAttributes) {
         if (result.hasErrors()) {
             return "admin/customer-form";
         }
-
         Customer saved = customerService.save(customer);
-
-        if (policyDoc != null && !policyDoc.isEmpty()) {
-            try {
-                customerService.savePolicyDoc(saved.getId(), policyDoc);
-            } catch (IllegalArgumentException | IOException e) {
-                // Customer data is already saved; just surface the doc-upload problem.
-                redirectAttributes.addFlashAttribute(
-                        "importError", "Customer saved, but policy document upload failed: " + e.getMessage());
-            }
-        }
-
-        return "redirect:/admin/dashboard";
+        redirectAttributes.addFlashAttribute("customerSaved", "Customer saved successfully.");
+        return "redirect:/admin/customers/" + saved.getId() + "/edit";
     }
 
     @PostMapping("/customers/{id}/delete")
@@ -101,29 +120,109 @@ public class AdminController {
         return "redirect:/admin/dashboard";
     }
 
-    @PostMapping("/customers/{id}/mark-paid")
-    public String markPaid(@PathVariable Long id) {
-        customerService.markPaid(id);
-        return "redirect:/admin/dashboard";
+    // --- Policies (a customer can have several) ---------------------------------------
+
+    @GetMapping("/customers/{customerId}/policies/new")
+    public String newPolicyForm(@PathVariable Long customerId, Model model) {
+        Policy policy = new Policy();
+        policy.setCustomer(customerService.findById(customerId));
+        model.addAttribute("policy", policy);
+        return "admin/policy-form";
     }
 
-    // Was referenced by the template but never actually implemented.
-    @GetMapping("/customers/{id}/policy-doc")
-    public ResponseEntity<byte[]> viewPolicyDoc(@PathVariable Long id) {
-        Customer customer = customerService.findById(id);
-        byte[] data = customer.getPolicyDocData();
-        if (data == null) {
-            return ResponseEntity.notFound().build();
-        }
-        MediaType mediaType = customer.getPolicyDocContentType() != null
-                ? MediaType.parseMediaType(customer.getPolicyDocContentType())
-                : MediaType.APPLICATION_PDF;
-        String filename = customer.getPolicyDocFileName() != null
-                ? customer.getPolicyDocFileName() : "policy-document.pdf";
+    @GetMapping("/policies/new")
+    public String newPolicyFormGeneral(Model model) {
+        model.addAttribute("policy", new Policy());
+        model.addAttribute("customers", customerService.search(null)); // adjust if your "list all" method has a different name
+        return "admin/policy-form";
+    }
 
-        return ResponseEntity.ok()
+    @GetMapping("/policies/{id}/edit")
+    public String editPolicyForm(@PathVariable Long id, Model model) {
+        model.addAttribute("policy", policyService.findById(id));
+        return "admin/policy-form";
+    }
+
+    @PostMapping("/policies/save")
+    public String savePolicy(@RequestParam Long customerId,
+                             @Valid @ModelAttribute("policy") Policy policy,
+                             BindingResult result,
+                             @RequestParam(value = "policyDoc", required = false) MultipartFile policyDoc,
+                             RedirectAttributes redirectAttributes,
+                             Model model) {
+        if (result.hasErrors()) {
+            policy.setCustomer(customerService.findById(customerId));
+            model.addAttribute("customers", customerService.search(null));
+            return "admin/policy-form";
+        }
+        Policy saved = policyService.save(customerId, policy);
+
+        if (policyDoc != null && !policyDoc.isEmpty()) {
+            try {
+                policyService.savePolicyDoc(saved.getId(), policyDoc);
+            } catch (Exception e) {
+                redirectAttributes.addFlashAttribute(
+                        "importError", "Policy saved, but document upload failed: " + e.getMessage());
+            }
+        }
+        return "redirect:/admin/customers/" + customerId + "/edit";
+    }
+
+    @PostMapping("/policies/{id}/delete")
+    public String deletePolicy(@PathVariable Long id) {
+        Long customerId = policyService.findById(id).getCustomer().getId();
+        policyService.delete(id);
+        return "redirect:/admin/customers/" + customerId + "/edit";
+    }
+
+    @PostMapping("/policies/{id}/mark-paid")
+    public String markPaid(@PathVariable Long id, @RequestParam(required = false) String from) {
+        policyService.markAlreadyPaid(id);
+        return "redirect:" + (from != null ? from : "/admin/dashboard");
+    }
+
+    @PostMapping("/policies/{id}/unmark-paid")
+    public String unmarkPaid(@PathVariable Long id, @RequestParam(required = false) String from) {
+        policyService.unmarkPaid(id);
+        return "redirect:" + (from != null ? from : "/admin/dashboard");
+    }
+
+    /**
+     * Policies grouped by insurer, mirroring the tabbed layout of the source workbook
+     * (one tab per insurer, e.g. HDFC HEALTH INSURANCE / TATA HEALTH INSURANCE / MOTOR
+     * INSURANCE / ...). Each tab shows the full policy + policyholder detail in one row.
+     */
+    @GetMapping("/policies")
+    public String policiesByInsurer(Model model) {
+        List<Policy> all = policyService.findAllSortedByNextDueDate();
+        java.util.Map<String, List<Policy>> byInsurer = new java.util.LinkedHashMap<>();
+        all.stream()
+                .sorted(Comparator.comparing(p -> p.getInsurerName() == null ? "" : p.getInsurerName()))
+                .forEach(p -> {
+                    String key = (p.getInsurerName() == null || p.getInsurerName().isBlank())
+                            ? "Unspecified" : p.getInsurerName();
+                    byInsurer.computeIfAbsent(key, k -> new java.util.ArrayList<>()).add(p);
+                });
+        model.addAttribute("policiesByInsurer", byInsurer);
+        return "admin/policies-by-insurer";
+    }
+
+    @GetMapping("/policies/{id}/policy-doc")
+    public org.springframework.http.ResponseEntity<byte[]> viewPolicyDoc(@PathVariable Long id) {
+        Policy policy = policyService.findById(id);
+        byte[] data = policy.getPolicyDocData();
+        if (data == null) {
+            return org.springframework.http.ResponseEntity.notFound().build();
+        }
+        org.springframework.http.MediaType mediaType = policy.getPolicyDocContentType() != null
+                ? org.springframework.http.MediaType.parseMediaType(policy.getPolicyDocContentType())
+                : org.springframework.http.MediaType.APPLICATION_PDF;
+        String filename = policy.getPolicyDocFileName() != null
+                ? policy.getPolicyDocFileName() : "policy-document.pdf";
+
+        return org.springframework.http.ResponseEntity.ok()
                 .contentType(mediaType)
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
                 .body(data);
     }
 
@@ -148,7 +247,7 @@ public class AdminController {
 
     @PostMapping("/run-reminders-now")
     public String runNow() {
-        scheduler.runDailyReminders();
+        scheduler.runDailyRemindersNow();
         return "redirect:/admin/reminder-logs";
     }
 
@@ -169,14 +268,14 @@ public class AdminController {
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("wishError", "Failed to send: " + e.getMessage());
         }
-        return "redirect:/admin/birthdays";
+        return "redirect:/admin/birthday-logs";
     }
 
     @PostMapping("/run-birthday-wishes-now")
     public String runBirthdayWishesNow(RedirectAttributes redirectAttributes) {
         int count = birthdayWishService.runDailyBirthdayWishes();
         redirectAttributes.addFlashAttribute("wishSent", "Sent " + count + " birthday wish(es).");
-        return "redirect:/admin/birthdays";
+        return "redirect:/admin/birthday-logs";
     }
 
     @PostMapping("/relatives/{id}/send-wish")
@@ -187,6 +286,37 @@ public class AdminController {
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("wishError", "Failed to send: " + e.getMessage());
         }
-        return "redirect:/admin/birthdays";
+        return "redirect:/admin/birthday-logs";
+    }
+
+    @PostMapping("/policies/bulk-delete")
+    public String bulkDeletePolicies(@RequestParam(value = "ids", required = false) List<Long> ids,
+                                     RedirectAttributes redirectAttributes) {
+        if (ids == null || ids.isEmpty()) {
+            redirectAttributes.addFlashAttribute("importError", "No policies were selected.");
+            return "redirect:/admin/policies";
+        }
+        policyService.deleteAll(ids);
+        redirectAttributes.addFlashAttribute("importResult", "Deleted " + ids.size() + " polic" + (ids.size() == 1 ? "y" : "ies") + ".");
+        return "redirect:/admin/policies";
+    }
+
+    @PostMapping("/customers/bulk-delete")
+    public String bulkDeleteCustomers(@RequestParam(value = "ids", required = false) List<Long> ids,
+                                      RedirectAttributes redirectAttributes) {
+        if (ids == null || ids.isEmpty()) {
+            redirectAttributes.addFlashAttribute("importError", "No customers were selected.");
+            return "redirect:/admin/dashboard";
+        }
+        customerService.deleteAll(ids);
+        redirectAttributes.addFlashAttribute("customerBulkDeleted",
+                "Deleted " + ids.size() + " customer" + (ids.size() == 1 ? "" : "s") + " (and their policies/relatives).");
+        return "redirect:/admin/dashboard";
+    }
+
+    @GetMapping("/birthday-logs")
+    public String birthdayLogs(Model model) {
+        model.addAttribute("logs", birthdayLogRepository.findTop200ByOrderBySentAtDesc());
+        return "admin/birthday-logs";
     }
 }

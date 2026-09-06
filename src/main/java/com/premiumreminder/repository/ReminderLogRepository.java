@@ -8,5 +8,5 @@ import java.util.List;
 public interface ReminderLogRepository extends JpaRepository<ReminderLog, Long> {
     List<ReminderLog> findTop200ByOrderBySentAtDesc();
 
-    List<ReminderLog> findByCustomerIdOrderBySentAtDesc(Long customerId);
+    List<ReminderLog> findByPolicyIdOrderBySentAtDesc(Long policyId);
 }

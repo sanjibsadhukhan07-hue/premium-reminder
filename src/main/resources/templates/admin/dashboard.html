@@ -4,102 +4,209 @@
     <meta charset="UTF-8">
     <title>Admin Dashboard - KFS Premium Reminder</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        #bulkBar { display: none; align-items: center; gap: 12px; }
+        .pager-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+        .pager-bar select { padding: 4px 8px; }
+        .pager-arrow { padding: 5px 12px; font-size: 15px; line-height: 1; }
+    </style>
 </head>
 <body>
-<div class="topbar">
-    <div class="brand">
-        <img th:src="@{/images/logo.png}" alt="KFS">
-        <strong>Premium Reminder — Admin</strong>
-    </div>
-    <div>
-        <a th:href="@{/admin/dashboard}">Dashboard</a>
-        <a th:href="@{/admin/customers/new}">Add Customer</a>
-        <a th:href="@{/admin/birthdays}">Birthdays</a>
-        <a th:href="@{/admin/relatives}">Relatives</a>
-        <a th:href="@{/admin/reminder-logs}">Reminder Logs</a>
-        <a th:href="@{/logout}">Logout</a>
-    </div>
-</div>
+<div th:replace="~{fragments/topbar :: admin('dashboard')}"></div>
 <div class="container">
     <div class="card" th:if="${importResult}">
         <strong>Import complete:</strong>
         <span th:text="${importResult.totalRows}"></span> row(s) processed —
-        <span th:text="${importResult.imported}"></span> created,
-        <span th:text="${importResult.updated}"></span> updated,
+        <span th:text="${importResult.customersCreated}"></span> new customer(s),
+        <span th:text="${importResult.policiesImported}"></span> new polic(y/ies),
+        <span th:text="${importResult.policiesUpdated}"></span> updated,
         <span th:text="${importResult.skipped}"></span> skipped.
         <ul th:if="${!importResult.errors.isEmpty()}">
-            <li th:each="err : ${importResult.errors}" style="color:#ff8a80;" th:text="${err}"></li>
+            <li th:each="err : ${importResult.errors}" style="color:#c0392b;" th:text="${err}"></li>
         </ul>
     </div>
-    <div class="card" th:if="${importError}" style="color:#ff8a80;">
+    <div class="card" th:if="${importError}" style="color:#c0392b;">
         <span th:text="${importError}"></span>
+    </div>
+    <div class="card" th:if="${customerBulkDeleted}" style="color:#1e8e50;">
+        <span th:text="${customerBulkDeleted}"></span>
     </div>
 
     <div class="card">
         <form th:action="@{/admin/customers/import}" method="post" enctype="multipart/form-data" class="inline">
-            <label>Bulk import customers (CSV):</label>
-            <input type="file" name="file" accept=".csv" required>
+            <label>Bulk import customers &amp; policies (Excel .xlsx):</label>
+            <input type="file" name="file" accept=".xlsx" required>
             <button class="btn btn-primary" type="submit">Upload</button>
         </form>
     </div>
 
     <div class="card">
-        <strong th:text="${#lists.size(dueToday)}">0</strong> customer(s) currently due for a reminder.
+        <strong th:text="${dueTodayCount}">0</strong> polic(y/ies) currently due for a reminder (30 days before/after renewal, unpaid).
         <form th:action="@{/admin/run-reminders-now}" method="post" style="display:inline">
             <button class="btn btn-primary" type="submit">Run reminders now</button>
         </form>
     </div>
     <div class="card">
-        <form th:action="@{/admin/dashboard}" method="get" class="inline">
-            <input type="text" name="q" th:value="${q}" placeholder="Search by name, policy, email or phone..." style="min-width:300px;">
-            <button class="btn btn-primary" type="submit">Search</button>
-            <a th:if="${q}" th:href="@{/admin/dashboard}" class="btn btn-secondary">Clear</a>
+        <form id="searchForm" th:action="@{/admin/dashboard}" method="get" class="inline" onsubmit="return false;">
+            <input type="text" id="searchInput" name="q" th:value="${q}"
+                   placeholder="Search by name, policy number, insurer, email or phone..." style="min-width:320px;"
+                   autocomplete="off">
+            <button class="btn btn-primary" type="submit" onclick="runSearch(); return false;">Search</button>
+            <a th:if="${q}" href="#" onclick="clearSearch(); return false;" class="btn btn-secondary">Clear</a>
         </form>
     </div>
-    <table>
-        <thead>
-        <tr>
-            <th>Name</th><th>DOB</th><th>Policy</th><th>Email</th><th>Phone</th>
-            <th>Premium</th><th>Due Date</th><th>Status</th><th>Actions</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr th:each="c : ${customers}">
-            <td th:text="${c.fullName}"></td>
-            <td th:text="${c.dateOfBirth != null ? c.dateOfBirth : '-'}"></td>
-            <td th:text="${c.policyNumber}"></td>
-            <td th:text="${c.email}"></td>
-            <td th:text="${c.phone}"></td>
-            <td th:text="${c.premiumAmount}"></td>
-            <td th:text="${c.nextDueDate}"></td>
-            <td>
-                <span th:if="${c.paid}" class="badge badge-paid">Paid</span>
-                <span th:if="${!c.paid and c.nextDueDate.isBefore(T(java.time.LocalDate).now())}" class="badge badge-overdue">Overdue</span>
-                <span th:if="${!c.paid and !c.nextDueDate.isBefore(T(java.time.LocalDate).now())}" class="badge badge-due">Pending</span>
-            </td>
-            <td class="actions-cell">
-                <a class="btn btn-primary" th:href="@{/admin/customers/{id}/edit(id=${c.id})}">Edit</a>
-                <a th:if="${c.policyDocFileName != null}"
-                   class="btn btn-secondary btn-icon"
-                   title="View policy document"
-                   th:href="@{/admin/customers/{id}/policy-doc(id=${c.id})}"
-                   th:onclick="'window.open(this.href, \'policyDoc\', \'width=850,height=950,resizable=yes,scrollbars=yes\'); return false;'">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/>
-                        <circle cx="12" cy="12" r="3"/>
-                    </svg>
-                </a>
-                <form class="inline" th:action="@{/admin/customers/{id}/mark-paid(id=${c.id})}" method="post">
-                    <button class="btn btn-success" type="submit">Mark Paid</button>
-                </form>
-                <form class="inline" th:action="@{/admin/customers/{id}/delete(id=${c.id})}" method="post"
-                      onsubmit="return confirm('Delete this customer?');">
-                    <button class="btn btn-danger" type="submit">Delete</button>
-                </form>
-            </td>
-        </tr>
-        </tbody>
-    </table>
+
+    <!-- Empty form living outside the table; row checkboxes and the delete button
+         below reference it via form="bulkForm" so nothing needs nesting. -->
+    <form id="bulkForm" th:action="@{/admin/customers/bulk-delete}" method="post"
+          onsubmit="return confirm('Delete all selected customers, along with all their policies and family members? This cannot be undone.');"></form>
+
+    <div class="card" id="bulkBar">
+        <span id="selectedCount">0 selected</span>
+        <button class="btn btn-danger" type="submit" form="bulkForm">Delete Selected</button>
+    </div>
+
+    <div id="resultsContainer" th:fragment="resultsContainer">
+        <!-- Sorted by nearest premium due date across each customer's policies -->
+        <div class="table-scroll">
+            <table>
+                <thead>
+                <tr>
+                    <th><input type="checkbox" id="selectAll" onclick="toggleAll(this)"></th>
+                    <th>Name</th><th>DOB</th><th>Office Tag</th><th>Email</th><th>Phone / WhatsApp</th>
+                    <th>Policies</th><th>Nearest Due Date</th><th>Status</th><th>Actions</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="c : ${customers}">
+                    <td><input type="checkbox" name="ids" th:value="${c.id}" form="bulkForm" class="rowCheck" onclick="updateBulkBar()"></td>
+                    <td th:text="${c.fullName}"></td>
+                    <td th:text="${c.dateOfBirth != null ? c.dateOfBirth : '-'}"></td>
+                    <td th:text="${c.officeTag ?: '-'}"></td>
+                    <td><span class="truncate" th:text="${c.email ?: '-'}" th:title="${c.email}"></span></td>
+                    <td>
+                        <span th:text="${c.phone}"></span><br
+                            th:if="${c.whatsappNumber != null and !c.whatsappNumber.equals(c.phone)}"><span
+                            th:if="${c.whatsappNumber != null and !c.whatsappNumber.equals(c.phone)}"
+                            class="small-note" th:text="'WA: ' + ${c.whatsappNumber}"></span>
+                    </td>
+                    <td>
+                        <span th:text="${#lists.size(c.policies)}"></span>
+                        <span class="policy-count">polic(y/ies)</span>
+                    </td>
+                    <td th:text="${c.earliestDueDate != null ? c.earliestDueDate : '—'}"></td>
+                    <td>
+                        <span th:if="${c.earliestDueDate == null}" class="badge badge-neutral">No open policy</span>
+                        <span th:if="${c.earliestDueDate != null and c.earliestDueDate.isAfter(T(java.time.LocalDate).now().plusMonths(1))}" class="badge badge-paid">Paid</span>
+                        <span th:if="${c.earliestDueDate != null and !c.earliestDueDate.isAfter(T(java.time.LocalDate).now().plusMonths(1)) and c.earliestDueDate.isBefore(T(java.time.LocalDate).now())}" class="badge badge-overdue">Overdue</span>
+                        <span th:if="${c.earliestDueDate != null and !c.earliestDueDate.isAfter(T(java.time.LocalDate).now().plusMonths(1)) and !c.earliestDueDate.isBefore(T(java.time.LocalDate).now())}" class="badge badge-due">Pending</span>
+                    </td>
+                    <td class="actions-cell">
+                        <a class="btn btn-primary" th:href="@{/admin/customers/{id}/edit(id=${c.id})}">Edit / View</a>
+                        <form class="inline" th:action="@{/admin/customers/{id}/delete(id=${c.id})}" method="post"
+                              onsubmit="return confirm('Delete this customer and all their policies?');">
+                            <button class="btn btn-danger" type="submit">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card pager-bar" style="justify-content:space-between;">
+            <div class="pager-bar">
+                <label class="small-note" style="margin-right:6px;">Rows per page:</label>
+                <select id="pageSize" onchange="changePageSize()">
+                    <option value="10" th:selected="${pageSize == 10}">10</option>
+                    <option value="20" th:selected="${pageSize == 20}">20</option>
+                    <option value="30" th:selected="${pageSize == 30}">30</option>
+                    <option value="50" th:selected="${pageSize == 50}">50</option>
+                </select>
+            </div>
+            <span style="color: var(--text-mid); font-size: 13px;">
+                Page <span th:text="${totalPages > 0 ? currentPage + 1 : 0}"></span> of <span th:text="${totalPages}"></span>
+                (<span th:text="${totalCustomers}"></span> total)
+            </span>
+            <div class="pager-bar">
+                <button type="button" class="btn btn-secondary pager-arrow" th:disabled="${currentPage <= 0}"
+                        onclick="goToPage(0); return false;" title="First page">&laquo;</button>
+                <button type="button" class="btn btn-secondary pager-arrow" th:disabled="${currentPage <= 0}"
+                        th:attr="onclick='goToPage(' + (${currentPage} - 1) + '); return false;'" title="Previous page">&larr;</button>
+                <button type="button" class="btn btn-secondary pager-arrow" th:disabled="${currentPage >= totalPages - 1}"
+                        th:attr="onclick='goToPage(' + (${currentPage} + 1) + '); return false;'" title="Next page">&rarr;</button>
+                <button type="button" class="btn btn-secondary pager-arrow" th:disabled="${currentPage >= totalPages - 1}"
+                        th:attr="onclick='goToPage(' + (${totalPages} - 1) + '); return false;'" title="Last page">&raquo;</button>
+            </div>
+        </div>
+    </div>
 </div>
+
+<script>
+    function toggleAll(source) {
+        document.querySelectorAll('.rowCheck').forEach(cb => cb.checked = source.checked);
+        updateBulkBar();
+    }
+    function updateBulkBar() {
+        const checked = document.querySelectorAll('.rowCheck:checked').length;
+        const total = document.querySelectorAll('.rowCheck').length;
+        const bar = document.getElementById('bulkBar');
+        const selectAll = document.getElementById('selectAll');
+        bar.style.display = checked > 0 ? 'flex' : 'none';
+        document.getElementById('selectedCount').textContent = checked + ' selected';
+        selectAll.checked = checked > 0 && checked === total;
+        selectAll.indeterminate = checked > 0 && checked < total;
+    }
+
+    // AJAX search + pagination: swaps in just the results fragment, so the search
+    // input never gets torn down/recreated and focus + cursor position are preserved.
+    let searchTimer = null;
+    const searchInput = document.getElementById('searchInput');
+
+    function currentPageSize() {
+        const sel = document.getElementById('pageSize');
+        return sel ? sel.value : 20;
+    }
+
+    function fetchResults(q, page) {
+        const params = new URLSearchParams();
+        if (q) params.set('q', q);
+        if (page) params.set('page', page);
+        params.set('size', currentPageSize());
+        params.set('fragment', 'true');
+
+        fetch('/admin/dashboard?' + params.toString())
+            .then(res => res.text())
+            .then(html => {
+                document.getElementById('resultsContainer').outerHTML = html;
+                const clean = new URLSearchParams(params);
+                clean.delete('fragment');
+                history.replaceState(null, '', '/admin/dashboard?' + clean.toString());
+            });
+    }
+
+    function runSearch() {
+        fetchResults(searchInput.value, 0);
+    }
+
+    function clearSearch() {
+        searchInput.value = '';
+        fetchResults('', 0);
+    }
+
+    function goToPage(page) {
+        fetchResults(searchInput.value, page);
+    }
+
+    function changePageSize() {
+        fetchResults(searchInput.value, 0);
+    }
+
+    searchInput.addEventListener('input', function () {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(function () {
+            fetchResults(searchInput.value, 0);
+        }, 300);
+    });
+</script>
 </body>
 </html>

@@ -2,7 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>My Policy - KFS Premium Reminder</title>
+    <title>My Policies - KFS Premium Reminder</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
 </head>
 <body>
@@ -11,23 +11,57 @@
         <img th:src="@{/images/logo.png}" alt="KFS">
         <strong>Premium Reminder</strong>
     </div>
-    <div><a th:href="@{/logout}">Logout</a></div>
+    <div><a th:href="@{/account/change-password}">Change Password</a>
+        <a th:href="@{/logout}">Logout</a></div>
 </div>
 <div class="container">
     <div class="card" th:if="${customer != null}">
         <h2 th:text="'Welcome, ' + ${customer.fullName}"></h2>
-        <p><strong>Policy Number:</strong> <span th:text="${customer.policyNumber}"></span></p>
-        <p><strong>Insurer:</strong> <span th:text="${customer.insurerName}"></span></p>
-        <p><strong>Premium Amount:</strong> <span th:text="${customer.premiumAmount}"></span></p>
-        <p><strong>Next Due Date:</strong> <span th:text="${customer.nextDueDate}"></span></p>
-        <p>
-            <strong>Status:</strong>
-            <span th:if="${customer.paid}" class="badge badge-paid">Paid</span>
-            <span th:if="${!customer.paid}" class="badge badge-due">Pending</span>
-        </p>
+        <p th:if="${customer.email}"><strong>Email:</strong> <span th:text="${customer.email}"></span></p>
+        <p><strong>Phone:</strong> <span th:text="${customer.phone}"></span></p>
+        <p th:if="${customer.dateOfBirth != null}"><strong>Date of Birth:</strong> <span th:text="${customer.dateOfBirth}"></span></p>
     </div>
+
+    <div class="card" th:if="${customer != null and !#lists.isEmpty(policies)}">
+        <h3>My Policies</h3>
+        <div class="table-scroll">
+            <table>
+                <thead>
+                <tr>
+                    <th>Category</th><th>Insurer</th><th>Plan Type</th><th>Policy Type</th>
+                    <th>Health Check-up / Vehicle Reg.</th><th>S.A./IDV</th><th>Policy No.</th>
+                    <th>Premium</th><th>Start Date</th><th>Due Date</th><th>Status</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="p : ${policies}">
+                    <td th:text="${p.category.label}"></td>
+                    <td th:text="${p.insurerName ?: '-'}"></td>
+                    <td th:text="${p.planType ?: '-'}"></td>
+                    <td th:text="${p.policyType ?: '-'}"></td>
+                    <td th:text="${p.category.name() == 'MOTOR'} ? (${p.vehicleRegistrationNo} ?: '-') : (${p.healthCheckupNote} ?: '-')"></td>
+                    <td th:text="${p.sumAssured ?: '-'}"></td>
+                    <td th:text="${p.policyNumber}"></td>
+                    <td th:text="${p.premiumAmount}"></td>
+                    <td th:text="${p.startDate ?: '-'}"></td>
+                    <td th:text="${p.nextDueDate}"></td>
+                    <td>
+                        <span th:if="${p.paid}" class="badge badge-paid">Paid</span>
+                        <span th:if="${!p.paid and p.nextDueDate.isBefore(T(java.time.LocalDate).now())}" class="badge badge-overdue">Overdue</span>
+                        <span th:if="${!p.paid and !p.nextDueDate.isBefore(T(java.time.LocalDate).now())}" class="badge badge-due">Pending</span>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card" th:if="${customer != null and #lists.isEmpty(policies)}">
+        No policies are on file yet for your account. Please contact support if you believe this is a mistake.
+    </div>
+
     <div class="card" th:if="${customer == null}">
-        No policy is linked to your account yet. Please contact support.
+        No policies are linked to your account yet. Please contact support.
     </div>
 </div>
 </body>

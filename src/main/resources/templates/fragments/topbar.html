@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="admin(active)" class="topbar">
+    <div class="brand">
+        <img th:src="@{/images/logo.png}" alt="KFS">
+        <strong>Premium Reminder — Admin</strong>
+    </div>
+    <div class="nav-links">
+        <a th:href="@{/admin/dashboard}" th:classappend="${active == 'dashboard'} ? 'active-link'">Dashboard</a>
+        <a th:href="@{/admin/policies}" th:classappend="${active == 'policies'} ? 'active-link'">Policies by Insurer</a>
+        <a th:href="@{/admin/policies/new}" th:classappend="${active == 'add-policy'} ? 'active-link'">Add Policy</a>
+        <a th:href="@{/admin/customers/new}" th:classappend="${active == 'add-customer'} ? 'active-link'">Add Customer</a>
+        <a th:href="@{/admin/birthdays}" th:classappend="${active == 'birthdays'} ? 'active-link'">Birthdays</a>
+        <a th:href="@{/admin/birthday-logs}" th:classappend="${active == 'birthday-logs'} ? 'active-link'">Birthday Logs</a>
+        <a th:href="@{/admin/relatives}" th:classappend="${active == 'relatives'} ? 'active-link'">Relatives</a>
+        <a th:href="@{/admin/reminder-logs}" th:classappend="${active == 'logs'} ? 'active-link'">Reminder Logs</a>
+        <a th:href="@{/account/change-password}">Change Password</a>
+        <a th:href="@{/logout}">Logout</a>
+    </div>
+</div>
+</body>
+</html>

@@ -2,91 +2,133 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Customer Form - KFS Premium Reminder</title>
+    <title>Customer - KFS Premium Reminder</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
 </head>
 <body>
-<div class="topbar">
-    <div class="brand">
-        <img th:src="@{/images/logo.png}" alt="KFS">
-        <strong>Premium Reminder — Admin</strong>
-    </div>
-    <div>
-        <a th:href="@{/admin/dashboard}">Dashboard</a>
-        <a th:href="@{/admin/birthdays}">Birthdays</a>
-        <a th:href="@{/admin/relatives}">Relatives</a>
-        <a th:href="@{/logout}">Logout</a>
-    </div>
-</div>
+<div th:replace="~{fragments/topbar :: admin('add-customer')}"></div>
 <div class="container">
+    <div class="card" th:if="${customerSaved}" style="color:#1e8e50;">
+        <span th:text="${customerSaved}"></span>
+    </div>
+
     <div class="card">
         <h2 th:text="${customer.id != null} ? 'Edit Customer' : 'Add Customer'"></h2>
-        <form th:action="@{/admin/customers/save}" th:object="${customer}" method="post" enctype="multipart/form-data" class="form-grid">
+        <form th:action="@{/admin/customers/save}" th:object="${customer}" method="post" class="form-grid">
             <input type="hidden" th:field="*{id}">
             <div>
                 <label>Full Name</label>
                 <input type="text" th:field="*{fullName}" required>
             </div>
             <div>
-                <label>Email</label>
-                <input type="email" th:field="*{email}" required>
+                <label>Email (optional - needed for email reminders/wishes and portal login)</label>
+                <input type="email" th:field="*{email}">
             </div>
             <div>
                 <label>Phone (E.164, e.g. +9198XXXXXXXX)</label>
                 <input type="text" th:field="*{phone}" required>
             </div>
             <div>
-                <label>Policy Number</label>
-                <input type="text" th:field="*{policyNumber}" required>
-            </div>
-            <div>
-                <label>Insurer Name</label>
-                <input type="text" th:field="*{insurerName}">
+                <label>WhatsApp Number (optional — leave blank if same as Phone)</label>
+                <input type="text" th:field="*{whatsappNumber}" placeholder="+9198XXXXXXXX">
             </div>
             <div>
                 <label>Date of Birth</label>
                 <input type="date" th:field="*{dateOfBirth}">
             </div>
             <div>
-                <label>Premium Amount</label>
-                <input type="number" step="0.01" th:field="*{premiumAmount}" required>
+                <label>Office Tag (agent/office, e.g. PAMPA, FCA, ANUPAM)</label>
+                <input type="text" th:field="*{officeTag}">
             </div>
             <div>
-                <label>Next Due Date</label>
-                <input type="date" th:field="*{nextDueDate}" required>
-            </div>
-            <div>
-                <label>Premium Frequency</label>
-                <select th:field="*{premiumFrequency}" required>
-                    <option th:each="freq : ${T(com.premiumreminder.model.PremiumFrequency).values()}"
-                            th:value="${freq}" th:text="${freq.label}"></option>
+                <label>Message Language</label>
+                <select th:field="*{messageLanguage}">
+                    <option value="ENGLISH">English</option>
+                    <option value="HINDI">Hindi</option>
+                    <option value="BENGALI">Bengali</option>
                 </select>
-            </div>
-            <div>
-                <label>Reminder Window (days before due date)</label>
-                <input type="number" th:field="*{reminderWindowDays}">
             </div>
             <div>
                 <label>Active</label>
                 <input type="checkbox" th:field="*{active}">
             </div>
-
-            <div style="grid-column: span 2; margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--border);">
-                <label>Policy Document (PDF only)</label>
-                <p th:if="${customer.policyDocFileName != null}" style="margin: 6px 0 10px;">
-                    Current file: <span th:text="${customer.policyDocFileName}"></span>
-                    <a th:href="@{/admin/customers/{id}/policy-doc(id=${customer.id})}" target="_blank">(view)</a>
-                </p>
-                <input type="file" name="policyDoc" accept="application/pdf,.pdf">
-                <p style="margin-top: 6px; color: var(--text-mid); font-size: 13px;">
-                    <span th:if="${customer.policyDocFileName != null}">Leave blank to keep the existing document.</span>
-                    <span th:unless="${customer.policyDocFileName != null}">Optional — you can also add this later.</span>
-                </p>
-            </div>
-
             <div style="grid-column: span 2;">
                 <button class="btn btn-primary" type="submit">Save</button>
             </div>
+        </form>
+    </div>
+
+    <div class="card" th:if="${customer.id != null}">
+        <h3>Policies</h3>
+        <a class="btn btn-primary" th:href="@{/admin/customers/{id}/policies/new(id=${customer.id})}">Add Policy</a>
+        <div class="table-scroll">
+            <table class="sub-table" th:if="${!#lists.isEmpty(customer.policies)}">
+                <thead>
+                <tr>
+                    <th>Category</th><th>Insurer</th><th>Plan/Policy Type</th><th>S.A./IDV</th>
+                    <th>Policy No.</th><th>Premium</th><th>Start Date</th><th>Due Date</th><th>Status</th><th>Actions</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="p : ${customer.policies}">
+                    <td th:text="${p.category.label}"></td>
+                    <td th:text="${p.insurerName ?: '-'}"></td>
+                    <td th:text="(${p.planType ?: '-'}) + ' / ' + (${p.policyType ?: '-'})"></td>
+                    <td th:text="${p.sumAssured ?: '-'}"></td>
+                    <td th:text="${p.policyNumber}"></td>
+                    <td th:text="${p.premiumAmount}"></td>
+                    <td th:text="${p.startDate ?: '-'}"></td>
+                    <td th:text="${p.nextDueDate}"></td>
+                    <td>
+                        <span th:if="${p.paid}" class="badge badge-paid">Paid</span>
+                        <span th:if="${!p.paid and p.nextDueDate.isBefore(T(java.time.LocalDate).now())}" class="badge badge-overdue">Overdue</span>
+                        <span th:if="${!p.paid and !p.nextDueDate.isBefore(T(java.time.LocalDate).now())}" class="badge badge-due">Pending</span>
+                    </td>
+                    <td class="actions-cell">
+                        <a class="btn btn-primary" th:href="@{/admin/policies/{id}/edit(id=${p.id})}">Edit</a>
+                        <a th:if="${p.policyDocFileName != null}" class="btn btn-secondary" target="_blank"
+                           th:href="@{/admin/policies/{id}/policy-doc(id=${p.id})}">Doc</a>
+                        <form class="inline" th:if="${!p.paid}"
+                              th:action="@{/admin/policies/{id}/mark-paid(id=${p.id})}" method="post">
+                            <button class="btn btn-success" type="submit" title="Stops reminders for this cycle; auto-clears once the next renewal date arrives">Already Paid</button>
+                        </form>
+                        <form class="inline" th:if="${p.paid}"
+                              th:action="@{/admin/policies/{id}/unmark-paid(id=${p.id})}" method="post">
+                            <button class="btn btn-secondary" type="submit">Undo Paid</button>
+                        </form>
+                        <form class="inline" th:action="@{/admin/policies/{id}/delete(id=${p.id})}" method="post"
+                              onsubmit="return confirm('Delete this policy?');">
+                            <button class="btn btn-danger" type="submit">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <p th:if="${#lists.isEmpty(customer.policies)}">No policies yet.</p>
+    </div>
+
+    <div class="card" th:if="${customer.id != null}">
+        <h3>Family Members</h3>
+        <a class="btn btn-primary" th:href="@{/admin/relatives/new(customerId=${customer.id})}">Add Relative</a>
+        <table class="sub-table" th:if="${!#lists.isEmpty(customer.relatives)}">
+            <thead><tr><th>Name</th><th>Relation</th><th>DOB</th><th>Email</th><th>Phone</th></tr></thead>
+            <tbody>
+            <tr th:each="r : ${customer.relatives}">
+                <td th:text="${r.fullName}"></td>
+                <td th:text="${r.relation ?: '-'}"></td>
+                <td th:text="${r.dateOfBirth}"></td>
+                <td th:text="${r.email}"></td>
+                <td th:text="${r.phone}"></td>
+            </tr>
+            </tbody>
+        </table>
+        <p th:if="${#lists.isEmpty(customer.relatives)}">No family members added yet.</p>
+    </div>
+
+    <div class="card" th:if="${customer.id != null}">
+        <form th:action="@{/admin/customers/{id}/create-login(id=${customer.id})}" method="post">
+            <button class="btn btn-secondary" type="submit">Create Customer Login</button>
         </form>
     </div>
 </div>

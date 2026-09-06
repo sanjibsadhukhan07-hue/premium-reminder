@@ -15,6 +15,10 @@ import java.time.MonthDay;
 import java.util.Comparator;
 import java.util.List;
 
+/**
+ * Sends birthday wishes via WhatsApp and email only (no SMS). The scheduler that calls
+ * runDailyBirthdayWishes() fires once daily at 10:00 AM IST - see BirthdayWishScheduler.
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -97,28 +101,29 @@ public class BirthdayWishService {
         String body = "Dear " + c.getFullName() + ",\n\nWishing you a very happy birthday! "
                 + "Thank you for being a valued customer.\n\nWarm regards,\nKFS Team";
 
-        try {
-            emailService.send(c.getEmail(), subject, body);
-            log(c.getId(), c.getFullName(), null, null, "EMAIL", true, "Sent");
-        } catch (Exception e) {
-            log.error("Birthday email failed for customer {}", c.getId(), e);
-            log(c.getId(), c.getFullName(), null, null, "EMAIL", false, e.getMessage());
+        if (c.getEmail() == null || c.getEmail().isBlank()) {
+            log(c.getId(), c.getFullName(), null, null, "EMAIL", null, false, "Skipped - no email on file");
+        } else {
+            try {
+                emailService.send(c.getEmail(), subject, body);
+                log(c.getId(), c.getFullName(), null, null, "EMAIL", null, true, "Sent");
+            } catch (Exception e) {
+                log.error("Birthday email failed for customer {}", c.getId(), e);
+                log(c.getId(), c.getFullName(), null, null, "EMAIL", null, false, e.getMessage());
+            }
         }
 
+        String rawNumber = effectiveWhatsAppNumber(c);
         try {
-            String mobile = c.getPhone().replaceFirst("^\\+", "");
-            whatsAppService.sendBirthdayTemplate(mobile, List.of(c.getFullName()));
-            log(c.getId(), c.getFullName(), null, null, "WHATSAPP", true, "Sent");
+            String mobile = rawNumber.replaceFirst("^\\+", "");
+            whatsAppService.sendBirthdayTemplate(mobile, List.of(c.getFullName()), c.getMessageLanguage());
+            log(c.getId(), c.getFullName(), null, null, "WHATSAPP", rawNumber, true, "Sent");
         } catch (Exception e) {
             log.error("Birthday WhatsApp message failed for customer {}", c.getId(), e);
-            log(c.getId(), c.getFullName(), null, null, "WHATSAPP", false, e.getMessage());
+            log(c.getId(), c.getFullName(), null, null, "WHATSAPP", rawNumber, false, e.getMessage());
         }
     }
 
-    /**
-     * Same idea as sendWish(Customer), but sent to the relative's own email/phone -
-     * relatives carry their own contact details rather than borrowing the policyholder's.
-     */
     private void sendWish(CustomerRelative r) {
         String subject = "Happy Birthday, " + r.getFullName() + "! \uD83C\uDF89";
         String body = "Dear " + r.getFullName() + ",\n\nWishing you a very happy birthday! "
@@ -129,32 +134,39 @@ public class BirthdayWishService {
 
         try {
             emailService.send(r.getEmail(), subject, body);
-            log(customerId, r.getFullName(), r.getId(), relation, "EMAIL", true, "Sent");
+            log(customerId, r.getFullName(), r.getId(), relation, "EMAIL", null, true, "Sent");
         } catch (Exception e) {
             log.error("Birthday email failed for relative {}", r.getId(), e);
-            log(customerId, r.getFullName(), r.getId(), relation, "EMAIL", false, e.getMessage());
+            log(customerId, r.getFullName(), r.getId(), relation, "EMAIL", null, false, e.getMessage());
         }
 
+        String rawNumber = r.getPhone();
         try {
-            String mobile = r.getPhone().replaceFirst("^\\+", "");
-            whatsAppService.sendBirthdayTemplate(mobile, List.of(r.getFullName()));
-            log(customerId, r.getFullName(), r.getId(), relation, "WHATSAPP", true, "Sent");
+            String mobile = rawNumber.replaceFirst("^\\+", "");
+            whatsAppService.sendBirthdayTemplate(mobile, List.of(r.getFullName()), r.getMessageLanguage());
+            log(customerId, r.getFullName(), r.getId(), relation, "WHATSAPP", rawNumber, true, "Sent");
         } catch (Exception e) {
             log.error("Birthday WhatsApp message failed for relative {}", r.getId(), e);
-            log(customerId, r.getFullName(), r.getId(), relation, "WHATSAPP", false, e.getMessage());
+            log(customerId, r.getFullName(), r.getId(), relation, "WHATSAPP", rawNumber, false, e.getMessage());
         }
     }
 
     private void log(Long customerId, String recipientName, Long relativeId, String relation,
-                     String channel, boolean success, String message) {
+                     String channel, String phone, boolean success, String message) {
         BirthdayLog entry = new BirthdayLog();
         entry.setCustomerId(customerId);
         entry.setCustomerName(recipientName);
         entry.setRelativeId(relativeId);
         entry.setRelation(relation);
         entry.setChannel(channel);
+        entry.setPhone(phone);
         entry.setSuccess(success);
         entry.setMessage(message);
         birthdayLogRepository.save(entry);
+    }
+
+    private String effectiveWhatsAppNumber(Customer c) {
+        String whatsapp = c.getWhatsappNumber();
+        return (whatsapp != null && !whatsapp.isBlank()) ? whatsapp : c.getPhone();
     }
 }

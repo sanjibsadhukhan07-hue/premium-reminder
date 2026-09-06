@@ -31,7 +31,6 @@ body {
 
 h1, h2, h3 { font-family: 'Playfair Display', Georgia, serif; font-weight: 700; }
 
-/* --- Auth / Login Page --- */
 .auth-box {
     max-width: 380px;
     margin: 100px auto;
@@ -60,30 +59,41 @@ h1, h2, h3 { font-family: 'Playfair Display', Georgia, serif; font-weight: 700; 
 .error { color: var(--danger-red); font-size: 13px; margin-bottom: 10px; }
 .success { color: var(--success-green); font-size: 13px; margin-bottom: 10px; }
 
-/* --- Top Navigation Bar --- */
 .topbar {
     background: var(--white);
-    padding: 0 6%;
-    height: 72px;
+    padding: 14px 6%;
+    min-height: 72px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    row-gap: 10px;
+    column-gap: 20px;
     border-bottom: 3px solid var(--orange);
     position: sticky;
     top: 0;
     z-index: 1000;
     box-shadow: 0 2px 16px rgba(0,32,96,0.10);
 }
-.topbar .brand { display: flex; align-items: center; gap: 12px; }
+.topbar .brand { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
 .topbar .brand img { height: 46px; }
 .topbar .brand strong { color: var(--navy); font-size: 15px; font-weight: 700; letter-spacing: 0.3px; }
+.topbar .nav-links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    row-gap: 6px;
+    column-gap: 4px;
+}
 .topbar a {
-    color: var(--text-dark); text-decoration: none; margin-left: 20px; font-weight: 500; font-size: 14px; transition: 0.2s;
+    color: var(--text-dark); text-decoration: none; font-weight: 500; font-size: 13.5px; transition: 0.2s;
+    padding: 7px 10px; border-radius: 6px; white-space: nowrap;
 }
 .topbar a:hover { color: var(--orange); }
+.topbar a.active-link { background: var(--navy); color: var(--white); }
+.topbar a.active-link:hover { color: var(--white); }
 
-/* --- Layout --- */
-.container { max-width: 1150px; margin: 34px auto; padding: 0 20px; }
+.container { max-width: 1400px; margin: 20px auto; padding: 0 20px; }
 
 .card {
     background: var(--white);
@@ -94,10 +104,10 @@ h1, h2, h3 { font-family: 'Playfair Display', Georgia, serif; font-weight: 700; 
     box-shadow: 0 4px 16px rgba(0,32,96,0.05);
 }
 .card h2 { color: var(--navy); margin-bottom: 16px; font-size: 1.4rem; }
+.card h3 { color: var(--navy); margin-bottom: 12px; font-size: 1.15rem; }
 .card p { color: var(--text-mid); margin-bottom: 8px; }
 .card p strong { color: var(--navy); }
 
-/* --- Tables --- */
 table {
     width: 100%;
     border-collapse: collapse;
@@ -111,14 +121,17 @@ th, td { padding: 13px 14px; text-align: left; border-bottom: 1px solid var(--bo
 th { background: var(--off-white); color: var(--navy); text-transform: uppercase; font-size: 11.5px; letter-spacing: 0.6px; font-weight: 700; }
 td { color: var(--text-mid); }
 tr:hover td { background: rgba(232, 93, 4, 0.04); }
+.table-scroll { overflow-x: auto; }
+.table-scroll table { min-width: 900px; }
+.truncate { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: bottom; }
+.actions-cell form.inline button, .actions-cell > a { white-space: nowrap; }
 
-/* --- Badges --- */
 .badge { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
 .badge-due { background: rgba(232, 93, 4, 0.12); color: var(--orange); }
 .badge-paid { background: rgba(30, 142, 80, 0.12); color: var(--success-green); }
 .badge-overdue { background: rgba(192, 57, 43, 0.12); color: var(--danger-red); }
+.badge-neutral { background: rgba(74, 85, 104, 0.12); color: var(--text-mid); }
 
-/* --- Buttons --- */
 .btn {
     display: inline-block; padding: 8px 16px; border-radius: 6px; font-size: 13px;
     text-decoration: none; border: none; cursor: pointer; font-weight: 700; transition: 0.2s;
@@ -134,7 +147,6 @@ tr:hover td { background: rgba(232, 93, 4, 0.04); }
 .btn-success:hover { background: #166b3d; }
 form.inline { display: inline; }
 
-/* --- Forms --- */
 input, select {
     padding: 10px; border-radius: 6px; border: 1px solid var(--border);
     background: var(--white); color: var(--text-dark); font-size: 14px;
@@ -151,3 +163,6 @@ code { background: var(--off-white); color: var(--orange); padding: 3px 9px; bor
     align-items: center;
 }
 .actions-cell form.inline { display: inline-flex; }
+
+.sub-table { margin-top: 10px; }
+.policy-count { font-size: 12px; color: var(--text-light); }

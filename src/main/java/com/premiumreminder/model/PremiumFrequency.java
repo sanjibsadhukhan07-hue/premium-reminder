@@ -3,10 +3,9 @@ package com.premiumreminder.model;
 import java.time.LocalDate;
 
 /**
- * Premium renewal frequency. Replaces the old renewalCycleDays (fixed day-count)
- * approach with calendar-based date math, so e.g. yearly renewals land on the
- * same calendar date next year regardless of leap years, and month-based cycles
- * correctly handle months of different lengths.
+ * Premium renewal frequency. Uses calendar-based date math so e.g. yearly renewals
+ * land on the same calendar date next year regardless of leap years, and month-based
+ * cycles correctly handle months of different lengths.
  */
 public enum PremiumFrequency {
 
@@ -45,10 +44,5 @@ public enum PremiumFrequency {
         return label;
     }
 
-    /**
-     * Computes the next due date from a given date, according to this frequency.
-     * Uses java.time's calendar-aware plusYears/plusMonths, which correctly
-     * handles Feb 29 and end-of-month edge cases (e.g. Jan 31 + 1 month -> Feb 28/29).
-     */
     public abstract LocalDate nextDueDate(LocalDate from);
 }
