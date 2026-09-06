@@ -339,6 +339,6 @@ public class BirthdayCardGenerator {
             if (fm.stringWidth(text) <= maxWidth) break;
             size -= 4;
         }
-        return font;
+        return font; //test
     }
 }
