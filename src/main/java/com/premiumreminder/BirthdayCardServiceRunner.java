@@ -26,6 +26,6 @@ public class BirthdayCardServiceRunner {
             fos.write(cardBytes);
         }
 
-        System.out.println("Saved: " + new File(outputPath).getAbsolutePath());
+        System.out.println("Saved: " + new File(outputPath).getAbsolutePath()); //run
     }
 }
