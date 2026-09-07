@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Birthday Card Template - KFS Premium Reminder</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:replace="~{fragments/topbar :: admin('birthday-template')}"></div>
+<div class="container">
+    <div class="card" th:if="${templateSaved}" style="color:#1e8e50;">
+        <span th:text="${templateSaved}"></span>
+    </div>
+    <div class="card" th:if="${templateError}" style="color:#c0392b;">
+        <span th:text="${templateError}"></span>
+    </div>
+
+    <div class="card">
+        <h3>Birthday Card Template</h3>
+        <p class="small-note">
+            This background image is used for every generated birthday card. Use the
+            fields below to position the name and date of birth text for THIS specific
+            image, preview it, and save once it looks right.
+        </p>
+
+        <div th:if="${template != null}">
+            <p><strong>Current dimensions:</strong>
+                <span th:text="${template.width}"></span> × <span th:text="${template.height}"></span> px
+                &nbsp;|&nbsp;
+                <strong>File:</strong> <span th:text="${template.fileName ?: '-'}"></span>
+                &nbsp;|&nbsp;
+                <strong>Last updated:</strong> <span th:text="${#temporals.format(template.updatedAt, 'dd-MMM-yyyy HH:mm')}"></span>
+            </p>
+        </div>
+        <div th:if="${template == null}">
+            <p class="small-note">No custom template uploaded yet - using the default bundled image.</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Preview With Sample Name</h3>
+        <p class="small-note">Shows exactly how a real birthday card would render. Adjust the position fields, hit Preview to check, then Save Positions once it looks right.</p>
+
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:14px;">
+            <input type="text" id="sampleName" value="Avijit Koley" placeholder="Sample name" style="min-width:220px;">
+            <input type="text" id="sampleDob" value="15-08-1985" placeholder="DD-MM-YYYY" style="min-width:140px;">
+        </div>
+
+        <div class="form-grid" style="max-width:900px; margin-bottom:14px;">
+            <div>
+                <label for="nameY">Name Y position (px)</label>
+                <input type="number" id="nameY" th:value="${position != null ? position.nameY() : 250}">
+            </div>
+            <div>
+                <label for="dateY">Date Y position (px)</label>
+                <input type="number" id="dateY" th:value="${position != null ? position.dateY() : 330}">
+            </div>
+            <div>
+                <label for="nameFontSizeMax">Name font size - max (px)</label>
+                <input type="number" id="nameFontSizeMax" th:value="${position != null ? position.nameFontSizeMax() : 78}">
+            </div>
+            <div>
+                <label for="nameFontSizeMin">Name font size - min (px, auto-shrink floor)</label>
+                <input type="number" id="nameFontSizeMin" th:value="${position != null ? position.nameFontSizeMin() : 36}">
+            </div>
+            <div>
+                <label for="dateFontSize">Date font size (px)</label>
+                <input type="number" id="dateFontSize" th:value="${position != null ? position.dateFontSize() : 40}">
+            </div>
+            <div>
+                <label for="sideMargin">Side margin (px, each edge)</label>
+                <input type="number" id="sideMargin" th:value="${position != null ? position.sideMargin() : 60}">
+            </div>
+            <div>
+                <label for="textColorHex">Text color</label>
+                <div class="color-picker-group">
+                    <input type="color" id="textColorHex" th:value="${position != null ? position.textColorHex() : '#3D4961'}">
+                    <div class="color-swatches" data-target="textColorHex">
+                        <button type="button" class="swatch" style="background:#3D4961" data-color="#3D4961" title="Navy"></button>
+                        <button type="button" class="swatch" style="background:#E85D04" data-color="#E85D04" title="Orange"></button>
+                        <button type="button" class="swatch" style="background:#B4821E" data-color="#B4821E" title="Gold"></button>
+                        <button type="button" class="swatch" style="background:#1E8E50" data-color="#1E8E50" title="Green"></button>
+                        <button type="button" class="swatch" style="background:#C0392B" data-color="#C0392B" title="Red"></button>
+                        <button type="button" class="swatch" style="background:#002060" data-color="#002060" title="Deep navy"></button>
+                        <button type="button" class="swatch" style="background:#000000" data-color="#000000" title="Black"></button>
+                        <button type="button" class="swatch" style="background:#FFFFFF; border:1px solid #ccc;" data-color="#FFFFFF" title="White"></button>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <label for="shadowColorHex">Shadow color</label>
+                <div class="color-picker-group">
+                    <input type="color" id="shadowColorHex" th:value="${position != null ? position.shadowColorHex() : '#FFFFFF'}">
+                    <div class="color-swatches" data-target="shadowColorHex">
+                        <button type="button" class="swatch" style="background:#FFFFFF; border:1px solid #ccc;" data-color="#FFFFFF" title="White"></button>
+                        <button type="button" class="swatch" style="background:#000000" data-color="#000000" title="Black"></button>
+                        <button type="button" class="swatch" style="background:#3D4961" data-color="#3D4961" title="Navy"></button>
+                        <button type="button" class="swatch" style="background:#E85D04" data-color="#E85D04" title="Orange"></button>
+                        <button type="button" class="swatch" style="background:#B4821E" data-color="#B4821E" title="Gold"></button>
+                        <button type="button" class="swatch" style="background:#F0E6C8" data-color="#F0E6C8" title="Cream"></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-bottom:14px;">
+            <button type="button" class="btn btn-primary" onclick="refreshPreview()">Preview</button>
+            <button type="button" class="btn btn-secondary" onclick="savePositions()">Save Positions</button>
+        </div>
+
+        <img id="samplePreview" alt="Sample birthday card preview"
+             style="max-width:480px; width:100%; border:1px solid var(--border); border-radius:6px;">
+    </div>
+
+    <div class="card">
+        <h3>Replace Template</h3>
+        <p class="small-note">
+            Recommended: PNG or JPEG. After uploading a new image with different
+            dimensions or layout, use "Preview With Sample Name" above to re-tune and
+            re-save the text position for the new image.
+        </p>
+        <form th:action="@{/admin/birthday-template/upload}" method="post" enctype="multipart/form-data" class="inline">
+            <input type="file" name="file" accept="image/png,image/jpeg" required>
+            <button class="btn btn-primary" type="submit">Upload &amp; Replace</button>
+        </form>
+    </div>
+</div>
+
+<script th:inline="javascript">
+    const previewUrlBase = /*[[@{/admin/birthday-template/sample}]]*/ '/admin/birthday-template/sample';
+    const positionsUrlBase = /*[[@{/admin/birthday-template/positions}]]*/ '/admin/birthday-template/positions';
+
+    function currentPositionParams() {
+        return {
+            nameY: document.getElementById('nameY').value,
+            dateY: document.getElementById('dateY').value,
+            nameFontSizeMax: document.getElementById('nameFontSizeMax').value,
+            nameFontSizeMin: document.getElementById('nameFontSizeMin').value,
+            dateFontSize: document.getElementById('dateFontSize').value,
+            sideMargin: document.getElementById('sideMargin').value,
+            textColorHex: document.getElementById('textColorHex').value,
+            shadowColorHex: document.getElementById('shadowColorHex').value
+        };
+    }
+
+    function refreshPreview() {
+        const name = document.getElementById('sampleName').value || 'Avijit Koley';
+        const dob = document.getElementById('sampleDob').value || '';
+        const params = new URLSearchParams({ name, dob, ...currentPositionParams(), _: Date.now() });
+        document.getElementById('samplePreview').src = previewUrlBase + '?' + params.toString();
+    }
+
+    function savePositions() {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = positionsUrlBase;
+        const params = currentPositionParams();
+        for (const key in params) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = params[key];
+            form.appendChild(input);
+        }
+        document.body.appendChild(form);
+        form.submit();
+    }
+
+    function syncSwatchSelection(group) {
+        const targetInput = document.getElementById(group.dataset.target);
+        group.querySelectorAll('.swatch').forEach(sw => {
+            sw.classList.toggle('selected', sw.dataset.color.toUpperCase() === targetInput.value.toUpperCase());
+        });
+    }
+
+    document.querySelectorAll('.color-swatches').forEach(group => {
+        const targetInput = document.getElementById(group.dataset.target);
+
+        group.querySelectorAll('.swatch').forEach(sw => {
+            sw.addEventListener('click', () => {
+                targetInput.value = sw.dataset.color;
+                syncSwatchSelection(group);
+                refreshPreview();
+            });
+        });
+
+        // keep swatches in sync if the admin picks a custom color instead
+        targetInput.addEventListener('input', () => syncSwatchSelection(group));
+
+        syncSwatchSelection(group);
+    });
+
+    refreshPreview();
+</script>
+</body>
+</html>

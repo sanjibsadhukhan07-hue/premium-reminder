@@ -1,3 +1,4 @@
+/*
 package com.premiumreminder;
 
 import com.premiumreminder.service.BirthdayCardService;
@@ -28,4 +29,4 @@ public class BirthdayCardServiceRunner {
 
         System.out.println("Saved: " + new File(outputPath).getAbsolutePath()); //run
     }
-}
+}*/

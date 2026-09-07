@@ -1,28 +1,28 @@
 package com.premiumreminder.service;
 
-import org.springframework.core.io.ClassPathResource;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 
 @Service
+@RequiredArgsConstructor
 public class BirthdayCardService {
 
-    private static final String TEMPLATE_PATH = "templates/birthday-template.png";
     private static final String FONT_NAME = "Serif";
 
-    private static final int NAME_FONT_SIZE = 100;
-    private static final int NAME_Y = 340;
-
-    private static final int DATE_FONT_SIZE = 48;
-    private static final int DATE_Y = 445;
+    private final BirthdayCardTemplateService templateService;
 
     public byte[] generateCard(String customerName, String dateOfBirth) throws IOException {
+        return generateCard(customerName, dateOfBirth, templateService.getActivePosition());
+    }
+
+    public byte[] generateCard(String customerName, String dateOfBirth, CardTextPosition position) throws IOException {
         BufferedImage template = loadTemplate();
 
         BufferedImage output = new BufferedImage(
@@ -32,10 +32,15 @@ public class BirthdayCardService {
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g.drawImage(template, 0, 0, null);
 
-        drawGoldCenteredText(g, customerName, template.getWidth(), NAME_Y, NAME_FONT_SIZE);
+        int maxTextWidth = template.getWidth() - (position.sideMargin() * 2);
+
+        Font nameFont = fittedFont(g, customerName, maxTextWidth,
+                position.nameFontSizeMax(), position.nameFontSizeMin());
+        drawCenteredText(g, customerName, template.getWidth(), position.nameY(), nameFont, position);
 
         if (dateOfBirth != null && !dateOfBirth.isBlank()) {
-            drawGoldCenteredText(g, dateOfBirth, template.getWidth(), DATE_Y, DATE_FONT_SIZE);
+            Font dateFont = new Font(FONT_NAME, Font.BOLD, position.dateFontSize());
+            drawCenteredText(g, dateOfBirth, template.getWidth(), position.dateY(), dateFont, position);
         }
 
         g.dispose();
@@ -45,25 +50,32 @@ public class BirthdayCardService {
         return baos.toByteArray();
     }
 
-    private void drawGoldCenteredText(Graphics2D g, String text, int imageWidth, int y, int fontSize) {
-        g.setFont(new Font(FONT_NAME, Font.BOLD, fontSize));
+    private Font fittedFont(Graphics2D g, String text, int maxWidth, int maxSize, int minSize) {
+        int size = maxSize;
+        Font font = new Font(FONT_NAME, Font.BOLD, size);
+        while (size > minSize) {
+            font = new Font(FONT_NAME, Font.BOLD, size);
+            FontMetrics fm = g.getFontMetrics(font);
+            if (fm.stringWidth(text) <= maxWidth) break;
+            size -= 2;
+        }
+        return font;
+    }
+
+    private void drawCenteredText(Graphics2D g, String text, int imageWidth, int y, Font font, CardTextPosition position) {
+        g.setFont(font);
         FontMetrics fm = g.getFontMetrics();
         int drawX = (imageWidth - fm.stringWidth(text)) / 2;
 
-        g.setColor(new Color(0, 0, 0, 140));
-        g.drawString(text, drawX + 3, y + 3);
+        g.setColor(position.shadowColor());
+        g.drawString(text, drawX + 2, y + 2);
 
-        GradientPaint gradient = new GradientPaint(
-                drawX, y - fm.getAscent(), new Color(255, 240, 200),
-                drawX, y + fm.getDescent(), new Color(180, 130, 30));
-        g.setPaint(gradient);
+        g.setColor(position.textColor());
         g.drawString(text, drawX, y);
-        g.setPaint(null);
     }
 
     private BufferedImage loadTemplate() throws IOException {
-        try (InputStream is = new ClassPathResource(TEMPLATE_PATH).getInputStream()) {
-            return ImageIO.read(is);
-        }
+        byte[] bytes = templateService.getActiveImageBytes();
+        return ImageIO.read(new ByteArrayInputStream(bytes));
     }
 }

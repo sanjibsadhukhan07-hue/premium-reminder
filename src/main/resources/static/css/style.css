@@ -188,3 +188,38 @@ code { background: var(--off-white); color: var(--orange); padding: 3px 9px; bor
 
 .sub-table { margin-top: 10px; }
 .policy-count { font-size: 12px; color: var(--text-light); }
+
+.color-picker-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.color-picker-group input[type="color"] {
+    width: 44px;
+    height: 38px;
+    padding: 2px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+.color-swatches {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.swatch {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    padding: 0;
+    transition: transform 0.15s;
+}
+.swatch:hover {
+    transform: scale(1.15);
+}
+.swatch.selected {
+    outline: 2px solid var(--navy);
+    outline-offset: 2px;
+}
