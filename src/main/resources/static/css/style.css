@@ -61,7 +61,7 @@ h1, h2, h3 { font-family: 'Playfair Display', Georgia, serif; font-weight: 700; 
 
 .topbar {
     background: var(--white);
-    padding: 14px 6%;
+    padding: 14px 4%;
     min-height: 72px;
     display: flex;
     justify-content: space-between;
@@ -77,23 +77,35 @@ h1, h2, h3 { font-family: 'Playfair Display', Georgia, serif; font-weight: 700; 
 }
 .topbar .brand { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
 .topbar .brand img { height: 46px; }
-.topbar .brand strong { color: var(--navy); font-size: 15px; font-weight: 700; letter-spacing: 0.3px; }
+.topbar .brand strong { color: var(--navy); font-size: 15px; font-weight: 700; letter-spacing: 0.3px; white-space: nowrap; }
+
 .topbar .nav-links {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
-    row-gap: 6px;
-    column-gap: 4px;
+    gap: 4px;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
 }
+.topbar .nav-links::-webkit-scrollbar { height: 4px; }
+.topbar .nav-links::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
 .topbar a {
     color: var(--text-dark); text-decoration: none; font-weight: 500; font-size: 13.5px; transition: 0.2s;
-    padding: 7px 10px; border-radius: 6px; white-space: nowrap;
+    padding: 7px 10px; border-radius: 6px; white-space: nowrap; flex-shrink: 0;
 }
 .topbar a:hover { color: var(--orange); }
 .topbar a.active-link { background: var(--navy); color: var(--white); }
 .topbar a.active-link:hover { color: var(--white); }
 
-.container { max-width: 1400px; margin: 20px auto; padding: 0 20px; }
+.container {
+    max-width: 1400px;
+    width: 94%;
+    margin: 20px auto;
+    padding: 0;
+}
 
 .card {
     background: var(--white);
@@ -151,8 +163,10 @@ form.inline { display: inline; }
     display: flex;
     gap: 10px;
     align-items: center;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
+    flex-shrink: 0;
 }
+
 .btn-icon {
     padding: 9px;
     width: 36px;
@@ -162,12 +176,14 @@ form.inline { display: inline; }
     justify-content: center;
     line-height: 0;
     color: var(--white);
+    flex-shrink: 0;
 }
 .btn-icon svg {
     display: block;
     stroke: var(--white);
     fill: none;
 }
+
 
 input, select {
     padding: 10px; border-radius: 6px; border: 1px solid var(--border);
@@ -222,4 +238,35 @@ code { background: var(--off-white); color: var(--orange); padding: 3px 9px; bor
 .swatch.selected {
     outline: 2px solid var(--navy);
     outline-offset: 2px;
+}
+
+@media (max-width: 900px) {
+    .container { width: 96%; margin: 14px auto; }
+    .topbar { padding: 10px 3%; row-gap: 8px; }
+    .topbar .brand img { height: 38px; }
+    .topbar .brand strong { font-size: 13px; }
+    .topbar a { font-size: 12.5px; padding: 6px 8px; }
+    .btn-icon { width: 32px; height: 32px; padding: 7px; }
+}
+
+@media (max-width: 600px) {
+    .topbar {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 10px 4%;
+    }
+    .topbar .brand { justify-content: space-between; width: 100%; }
+    .topbar .nav-links {
+        width: 100%;
+        order: 3;
+        padding-top: 6px;
+        border-top: 1px solid var(--border);
+    }
+    .nav-actions {
+        width: 100%;
+        order: 2;
+        justify-content: flex-end;
+    }
+    .card { padding: 16px; }
+    .form-grid { grid-template-columns: 1fr; }
 }
