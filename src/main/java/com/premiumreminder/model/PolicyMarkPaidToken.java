@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Entity
 @Table(name = "policy_mark_paid_token")
@@ -25,7 +26,7 @@ public class PolicyMarkPaidToken {
     private Long policyId;
 
     @Column(nullable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private LocalDateTime createdAt = LocalDateTime.now(ZoneId.of("Asia/Kolkata"));
 
     @Column(nullable = false)
     private LocalDateTime expiresAt;

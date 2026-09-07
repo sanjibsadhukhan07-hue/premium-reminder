@@ -19,7 +19,7 @@
     <div class="card" th:if="${wishError}" style="color:#c0392b;">
         <span th:text="${wishError}"></span>
     </div>
-    <div class="card">
+    <div class="card" style="display:flex; justify-content:flex-end;">
         <a class="btn btn-secondary" th:href="@{/admin/export/birthdays}">Export Birthdays (Excel)</a>
     </div>
 

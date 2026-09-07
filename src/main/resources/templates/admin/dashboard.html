@@ -40,21 +40,21 @@
         </form>
     </div>
     <div class="card">
-        <a class="btn btn-secondary" th:href="@{/admin/export/customers-policies}">Export Customers & Policies (Excel)</a>
-    </div>
-    <div class="card">
         <strong th:text="${dueTodayCount}">0</strong> polic(y/ies) currently due for a reminder (30 days before/after renewal, unpaid).
         <form th:action="@{/admin/run-reminders-now}" method="post" style="display:inline">
             <button class="btn btn-primary" type="submit">Run reminders now</button>
         </form>
     </div>
     <div class="card">
-        <form id="searchForm" th:action="@{/admin/dashboard}" method="get" class="inline" onsubmit="return false;">
-            <input type="text" id="searchInput" name="q" th:value="${q}"
-                   placeholder="Search by name, policy number, insurer, email or phone..." style="min-width:320px;"
-                   autocomplete="off">
-            <button class="btn btn-primary" type="submit" onclick="runSearch(); return false;">Search</button>
-            <a th:if="${q}" href="#" onclick="clearSearch(); return false;" class="btn btn-secondary">Clear</a>
+        <form id="searchForm" th:action="@{/admin/dashboard}" method="get" onsubmit="return false;"
+              style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                <input type="text" id="searchInput" name="q" th:value="${q}"
+                       placeholder="Search by name, policy number, insurer, email or phone..." style="min-width:320px;"
+                       autocomplete="off">
+                <a th:if="${q}" href="#" onclick="clearSearch(); return false;" class="btn btn-secondary">Clear</a>
+            </div>
+            <a class="btn btn-secondary" th:href="@{/admin/export/customers-policies}">Export Customers &amp; Policies (Excel)</a>
         </form>
     </div>
 

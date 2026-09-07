@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Entity
 @Table(name = "reminder_log")
@@ -39,7 +40,7 @@ public class ReminderLog {
     // Null for EMAIL rows.
     private String phone;
 
-    private LocalDateTime sentAt = LocalDateTime.now();
+    private LocalDateTime sentAt = LocalDateTime.now(ZoneId.of("Asia/Kolkata"));
 
     // SMS removed per requirement - WhatsApp and Email only
     public enum Channel {

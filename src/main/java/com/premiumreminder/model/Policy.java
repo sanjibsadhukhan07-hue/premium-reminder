@@ -13,6 +13,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 /**
  * A single insurance policy belonging to a Customer. Fields map onto the columns used
@@ -104,7 +105,7 @@ public class Policy {
     private LocalDate lastReminderSentDate;
 
     @Column(updatable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private LocalDateTime createdAt = LocalDateTime.now(ZoneId.of("Asia/Kolkata"));
 
     private boolean active = true;
 }

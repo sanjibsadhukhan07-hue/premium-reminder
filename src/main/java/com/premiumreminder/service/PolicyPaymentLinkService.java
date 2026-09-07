@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.UUID;
 
 /**
@@ -58,7 +59,7 @@ public class PolicyPaymentLinkService {
         t.setPolicyId(policyId);
         // Covers the full +/-30-day reminder window plus buffer, so a slightly late
         // click still works.
-        t.setExpiresAt(LocalDateTime.now().plusDays(45));
+        t.setExpiresAt(LocalDateTime.now(ZoneId.of("Asia/Kolkata")).plusDays(45));
         tokenRepository.save(t);
 
         return publicBaseUrl + "/policies/" + policyId + "/mark-paid/" + token;
@@ -73,7 +74,7 @@ public class PolicyPaymentLinkService {
         if (t.isUsed()) {
             return new TokenResult(Status.USED, null);
         }
-        if (t.getExpiresAt().isBefore(LocalDateTime.now())) {
+        if (t.getExpiresAt().isBefore(LocalDateTime.now(ZoneId.of("Asia/Kolkata")))) {
             return new TokenResult(Status.EXPIRED, null);
         }
 
@@ -94,7 +95,7 @@ public class PolicyPaymentLinkService {
         if (t.isUsed()) {
             return new TokenResult(Status.USED, null);
         }
-        if (t.getExpiresAt().isBefore(LocalDateTime.now())) {
+        if (t.getExpiresAt().isBefore(LocalDateTime.now(ZoneId.of("Asia/Kolkata")))) {
             return new TokenResult(Status.EXPIRED, null);
         }
 
@@ -112,7 +113,7 @@ public class PolicyPaymentLinkService {
         Policy updated = policyRepository.findById(t.getPolicyId()).orElseThrow();
 
         t.setUsed(true);
-        t.setUsedAt(LocalDateTime.now());
+        t.setUsedAt(LocalDateTime.now(ZoneId.of("Asia/Kolkata")));
         tokenRepository.save(t);
 
         return new TokenResult(Status.SUCCESS, updated);

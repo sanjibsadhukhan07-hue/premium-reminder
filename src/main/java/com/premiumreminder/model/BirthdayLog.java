@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Entity
 @Table(name = "birthday_log")
@@ -32,5 +33,5 @@ public class BirthdayLog {
     // phone number isn't the relevant destination for that channel.
     private String phone;
 
-    private LocalDateTime sentAt = LocalDateTime.now();
+    private LocalDateTime sentAt = LocalDateTime.now(ZoneId.of("Asia/Kolkata"));
 }
