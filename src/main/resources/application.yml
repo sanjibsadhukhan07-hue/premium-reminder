@@ -49,7 +49,7 @@ app:
     template-name-hi: ${WHATSAPP_TEMPLATE_NAME_HI:premium_reminder_hi}
     template-language-hi: ${WHATSAPP_TEMPLATE_LANGUAGE_HI:hi}
     template-name-bn: ${WHATSAPP_TEMPLATE_NAME_BN:premium_reminder_bn}
-    template-language-bn: ${WHATSAPP_TEMPLATE_LANGUAGE_BN:bn}
+    template-language-bn: ${WHATSAPP_TEMPLATE_LANGUAGE_BN:bn_IN}
     birthday-template-name: ${WHATSAPP_BIRTHDAY_TEMPLATE_NAME:birthday_greeting_en}
     birthday-template-language: ${WHATSAPP_BIRTHDAY_TEMPLATE_LANGUAGE:en_US}
     birthday-template-name-hi: ${WHATSAPP_BIRTHDAY_TEMPLATE_NAME_HI:birthday_greeting_hi}
