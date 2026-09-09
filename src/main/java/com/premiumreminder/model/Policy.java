@@ -48,6 +48,8 @@ public class Policy {
     @JoinColumn(name = "customer_id", nullable = false)
     private Customer customer;
 
+    private String policyHolderName;
+
     @NotNull
     @Enumerated(EnumType.STRING)
     private PolicyCategory category = PolicyCategory.HEALTH;

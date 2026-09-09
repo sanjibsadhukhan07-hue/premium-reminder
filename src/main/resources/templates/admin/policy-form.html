@@ -28,6 +28,11 @@
             <input th:if="${policy.customer != null}" type="hidden" name="customerId" th:value="${policy.customer.id}">
 
             <div>
+                <label>Policy Holder Name</label>
+                <input type="text" th:field="*{policyHolderName}"
+                       th:placeholder="${policy.customer != null} ? 'Leave blank if same as ' + ${policy.customer.fullName} : 'Leave blank if same as the customer'">
+            </div>
+            <div>
                 <label>Category</label>
                 <select id="category" th:field="*{category}" onchange="toggleCategoryFields()" required>
                     <option th:each="cat : ${T(com.premiumreminder.model.PolicyCategory).values()}"

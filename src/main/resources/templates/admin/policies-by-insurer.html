@@ -103,7 +103,7 @@
                 <thead>
                 <tr>
                     <th><input type="checkbox" class="selectAllTab" th:attr="onclick='toggleTab(' + ${iter.index} + ', this)'"></th>
-                    <th>SL</th><th>Name</th><th>Phone</th><th>Office Tag</th><th>Category</th>
+                    <th>SL</th><th>Proposer</th><th>Policy Holder</th><th>Phone</th><th>Office Tag</th><th>Category</th>
                     <th>Health Check-up / Vehicle Reg.</th><th>Plan Type</th><th>Policy Type</th>
                     <th>Premium Frequency</th>
                     <th>S.A./IDV</th><th>Premium</th><th>Start Date</th><th>Renewal Date</th>
@@ -112,11 +112,12 @@
                 </thead>
                 <tbody>
                 <tr th:each="p, pIter : ${entry.value}"
-                    th:attr="data-search=${#strings.toLowerCase(p.customer.fullName + ' ' + p.customer.phone + ' ' + (p.customer.email ?: '') + ' ' + (p.customer.officeTag ?: '') + ' ' + p.policyNumber)}">
+                    th:attr="data-search=${#strings.toLowerCase(p.customer.fullName + ' ' + (p.policyHolderName ?: '') + ' ' + p.customer.phone + ' ' + (p.customer.email ?: '') + ' ' + (p.customer.officeTag ?: '') + ' ' + p.policyNumber)}">
                     <td><input type="checkbox" name="ids" th:value="${p.id}" form="bulkForm"
                                th:attr="data-tab=${iter.index}" class="rowCheck" onclick="updateBulkBar()"></td>
                     <td th:text="${pIter.count}"></td>
                     <td th:text="${p.customer.fullName}"></td>
+                    <td th:text="${p.policyHolderName ?: p.customer.fullName}"></td>
                     <td th:text="${p.customer.phone}"></td>
                     <td th:text="${p.customer.officeTag ?: '-'}"></td>
                     <td th:text="${p.category.label}"></td>

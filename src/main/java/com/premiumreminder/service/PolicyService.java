@@ -62,6 +62,7 @@ public class PolicyService {
         }
 
         target.setCategory(formPolicy.getCategory());
+        target.setPolicyHolderName(formPolicy.getPolicyHolderName());
         target.setPolicyNumber(formPolicy.getPolicyNumber());
         target.setInsurerName(formPolicy.getInsurerName());
         target.setPlanType(formPolicy.getPlanType());
@@ -368,6 +369,7 @@ public class PolicyService {
         String categoryRaw = optionalField(row, col, fmt, "category", null);
         policy.setCategory(categoryRaw != null ? parseCategory(categoryRaw) : sheetDefaultCategory);
         policy.setInsurerName(optionalField(row, col, fmt, "insurername", policy.getInsurerName()));
+        policy.setPolicyHolderName(optionalField(row, col, fmt, "policyholdername", policy.getPolicyHolderName()));
         policy.setPlanType(optionalField(row, col, fmt, "plantype", policy.getPlanType()));
         policy.setPolicyType(optionalField(row, col, fmt, "policytype", policy.getPolicyType()));
         String sumAssured = optionalField(row, col, fmt, "sumassured", null);

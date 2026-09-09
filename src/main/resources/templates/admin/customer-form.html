@@ -66,7 +66,7 @@
             <table class="sub-table" th:if="${!#lists.isEmpty(customer.policies)}">
                 <thead>
                 <tr>
-                    <th>Category</th><th>Insurer</th><th>Plan/Policy Type</th><th>S.A./IDV</th>
+                    <th>Category</th><th>Insurer</th><th>Policy Holder</th><th>Plan/Policy Type</th><th>S.A./IDV</th>
                     <th>Policy No.</th><th>Premium</th><th>Start Date</th><th>Due Date</th><th>Status</th><th>Actions</th>
                 </tr>
                 </thead>
@@ -74,6 +74,7 @@
                 <tr th:each="p : ${customer.policies}">
                     <td th:text="${p.category.label}"></td>
                     <td th:text="${p.insurerName ?: '-'}"></td>
+                    <td th:text="${p.policyHolderName ?: customer.fullName}"></td>
                     <td th:text="(${p.planType ?: '-'}) + ' / ' + (${p.policyType ?: '-'})"></td>
                     <td th:text="${p.sumAssured ?: '-'}"></td>
                     <td th:text="${p.policyNumber}"></td>
