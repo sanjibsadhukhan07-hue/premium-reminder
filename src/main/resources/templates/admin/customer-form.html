@@ -114,7 +114,7 @@
         <h3>Family Members</h3>
         <a class="btn btn-primary" th:href="@{/admin/relatives/new(customerId=${customer.id})}">Add Relative</a>
         <table class="sub-table" th:if="${!#lists.isEmpty(customer.relatives)}">
-            <thead><tr><th>Name</th><th>Relation</th><th>DOB</th><th>Email</th><th>Phone</th></tr></thead>
+            <thead><tr><th>Name</th><th>Relation</th><th>DOB</th><th>Email</th><th>Phone</th><th>Actions</th></tr></thead>
             <tbody>
             <tr th:each="r : ${customer.relatives}">
                 <td th:text="${r.fullName}"></td>
@@ -122,6 +122,13 @@
                 <td th:text="${r.dateOfBirth}"></td>
                 <td th:text="${r.email}"></td>
                 <td th:text="${r.phone}"></td>
+                <td class="actions-cell">
+                    <a class="btn btn-primary" th:href="@{/admin/relatives/{id}/edit(id=${r.id})}">Edit</a>
+                    <form class="inline" th:action="@{/admin/relatives/{id}/delete(id=${r.id})}" method="post"
+                          onsubmit="return confirm('Delete this family member?');">
+                        <button class="btn btn-danger" type="submit">Delete</button>
+                    </form>
+                </td>
             </tr>
             </tbody>
         </table>
