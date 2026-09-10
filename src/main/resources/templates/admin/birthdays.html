@@ -9,6 +9,7 @@
         .pager-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; justify-content: space-between; }
         .pager-bar select { padding: 4px 8px; }
         .pager-arrow { padding: 5px 12px; font-size: 15px; line-height: 1; }
+        .row-hidden, .page-hidden { display: none !important; }
     </style>
 </head>
 <body>
@@ -36,6 +37,12 @@
     </div>
 
     <div class="card">
+        <input type="text" id="birthdaySearch" placeholder="Search by name, relation, policyholder, email, or phone..."
+               style="min-width:360px;" autocomplete="off" oninput="filterBirthdays()">
+        <span id="matchCount" class="small-note" style="margin-left:10px;"></span>
+    </div>
+
+    <div class="card">
         <h3>Policyholders</h3>
         <table id="policyholderTable">
             <thead>
@@ -44,10 +51,11 @@
             </tr>
             </thead>
             <tbody>
-            <tr th:each="e : ${entries}">
+            <tr th:each="e : ${entries}"
+                th:attr="data-search=${#strings.toLowerCase(e.customer.fullName + ' ' + (e.customer.email ?: '') + ' ' + (e.customer.phone ?: ''))}">
                 <td th:text="${e.customer.fullName}"></td>
-                <td th:text="${e.customer.dateOfBirth}"></td>
-                <td th:text="${e.nextBirthday}"></td>
+                <td th:text="${#temporals.format(e.customer.dateOfBirth, 'dd-MM-yyyy')}"></td>
+                <td th:text="${#temporals.format(e.nextBirthday, 'dd-MM-yyyy')}"></td>
                 <td th:text="${e.customer.email}"></td>
                 <td th:text="${e.customer.phone}"></td>
                 <td class="actions-cell">
@@ -58,6 +66,7 @@
             </tr>
             </tbody>
         </table>
+        <p class="small-note no-results-msg" data-table="policyholderTable" style="display:none;">No policyholders match your search.</p>
         <div class="pager-bar" id="policyholderPager" style="margin-top:10px;"></div>
     </div>
 
@@ -71,14 +80,15 @@
             </tr>
             </thead>
             <tbody>
-            <tr th:each="e : ${relativeEntries}">
+            <tr th:each="e : ${relativeEntries}"
+                th:attr="data-search=${#strings.toLowerCase(e.relative.fullName + ' ' + (e.relative.relation ?: '') + ' ' + e.relative.customer.fullName + ' ' + (e.relative.email ?: '') + ' ' + (e.relative.phone ?: ''))}">
                 <td th:text="${e.relative.fullName}"></td>
                 <td th:text="${e.relative.relation ?: '-'}"></td>
                 <td>
                     <span th:text="${e.relative.customer.fullName}"></span>
                 </td>
-                <td th:text="${e.relative.dateOfBirth}"></td>
-                <td th:text="${e.nextBirthday}"></td>
+                <td th:text="${#temporals.format(e.relative.dateOfBirth, 'dd-MM-yyyy')}"></td>
+                <td th:text="${#temporals.format(e.nextBirthday, 'dd-MM-yyyy')}"></td>
                 <td th:text="${e.relative.email}"></td>
                 <td th:text="${e.relative.phone}"></td>
                 <td class="actions-cell">
@@ -89,6 +99,7 @@
             </tr>
             </tbody>
         </table>
+        <p class="small-note no-results-msg" data-table="relativeBirthdayTable" style="display:none;">No relatives match your search.</p>
         <div class="pager-bar" id="relativePager" style="margin-top:10px;"></div>
     </div>
 </div>
@@ -96,58 +107,114 @@
 <script>
     // Reusable client-side pager: hides/shows <tr> elements in a tbody based on the
     // current page and page size, without ever removing them from the DOM (so any
-    // per-row forms/state stay intact when navigating between pages).
-    function setupPager(tableId, controlsId, defaultSize) {
-        const rows = Array.from(document.querySelectorAll('#' + tableId + ' tbody tr'));
-        const controls = document.getElementById(controlsId);
-        let pageSize = defaultSize;
-        let currentPage = 0;
+    // per-row forms/state stay intact when navigating between pages). Only paginates
+    // rows that are currently search-matching (.row-hidden rows are always skipped);
+    // rows excluded solely by pagination get .page-hidden instead, kept distinct so
+    // a future "select all matching" feature could still reach them if ever added.
+    const pagers = {};
 
-        function totalPages() {
-            return Math.max(1, Math.ceil(rows.length / pageSize));
+    function setupPager(tableId, controlsId, defaultSize) {
+        const controls = document.getElementById(controlsId);
+        const state = { pageSize: defaultSize, currentPage: 0 };
+        pagers[tableId] = state;
+
+        function matchingRows() {
+            return Array.from(document.querySelectorAll('#' + tableId + ' tbody tr'))
+                .filter(r => !r.classList.contains('row-hidden'));
+        }
+
+        function totalPages(rows) {
+            return Math.max(1, Math.ceil(rows.length / state.pageSize));
         }
 
         function render() {
-            const tp = totalPages();
-            currentPage = Math.max(0, Math.min(currentPage, tp - 1));
-            const start = currentPage * pageSize;
-            const end = start + pageSize;
+            const rows = matchingRows();
+            const tp = totalPages(rows);
+            state.currentPage = Math.max(0, Math.min(state.currentPage, tp - 1));
+            const start = state.currentPage * state.pageSize;
+            const end = start + state.pageSize;
+
             rows.forEach((row, i) => {
-                row.style.display = (i >= start && i < end) ? '' : 'none';
+                row.classList.toggle('page-hidden', !(i >= start && i < end));
             });
 
             controls.innerHTML = `
                 <div class="pager-bar">
                     <label class="small-note" style="margin-right:6px;">Rows per page:</label>
                     <select class="pager-size">
-                        ${[10, 20, 30, 50].map(n => `<option value="${n}" ${n === pageSize ? 'selected' : ''}>${n}</option>`).join('')}
+                        ${[10, 20, 30, 50].map(n => `<option value="${n}" ${n === state.pageSize ? 'selected' : ''}>${n}</option>`).join('')}
                     </select>
                 </div>
-                <span class="small-note">Page ${rows.length ? currentPage + 1 : 0} of ${tp} (${rows.length} total)</span>
+                <span class="small-note">Page ${rows.length ? state.currentPage + 1 : 0} of ${tp} (${rows.length} total)</span>
                 <div class="pager-bar">
-                    <button type="button" class="btn btn-secondary pager-arrow pager-first" ${currentPage === 0 ? 'disabled' : ''} title="First page">&laquo;</button>
-                    <button type="button" class="btn btn-secondary pager-arrow pager-prev" ${currentPage === 0 ? 'disabled' : ''} title="Previous page">&larr;</button>
-                    <button type="button" class="btn btn-secondary pager-arrow pager-next" ${currentPage >= tp - 1 ? 'disabled' : ''} title="Next page">&rarr;</button>
-                    <button type="button" class="btn btn-secondary pager-arrow pager-last" ${currentPage >= tp - 1 ? 'disabled' : ''} title="Last page">&raquo;</button>
+                    <button type="button" class="btn btn-secondary pager-arrow pager-first" ${state.currentPage === 0 ? 'disabled' : ''} title="First page">&laquo;</button>
+                    <button type="button" class="btn btn-secondary pager-arrow pager-prev" ${state.currentPage === 0 ? 'disabled' : ''} title="Previous page">&larr;</button>
+                    <button type="button" class="btn btn-secondary pager-arrow pager-next" ${state.currentPage >= tp - 1 ? 'disabled' : ''} title="Next page">&rarr;</button>
+                    <button type="button" class="btn btn-secondary pager-arrow pager-last" ${state.currentPage >= tp - 1 ? 'disabled' : ''} title="Last page">&raquo;</button>
                 </div>
             `;
 
             controls.querySelector('.pager-size').addEventListener('change', function () {
-                pageSize = parseInt(this.value, 10);
-                currentPage = 0;
+                state.pageSize = parseInt(this.value, 10);
+                state.currentPage = 0;
                 render();
             });
-            controls.querySelector('.pager-first').addEventListener('click', function () { currentPage = 0; render(); });
-            controls.querySelector('.pager-prev').addEventListener('click', function () { currentPage--; render(); });
-            controls.querySelector('.pager-next').addEventListener('click', function () { currentPage++; render(); });
-            controls.querySelector('.pager-last').addEventListener('click', function () { currentPage = totalPages() - 1; render(); });
+            controls.querySelector('.pager-first').addEventListener('click', function () { state.currentPage = 0; render(); });
+            controls.querySelector('.pager-prev').addEventListener('click', function () { state.currentPage--; render(); });
+            controls.querySelector('.pager-next').addEventListener('click', function () { state.currentPage++; render(); });
+            controls.querySelector('.pager-last').addEventListener('click', function () { state.currentPage = totalPages(matchingRows()) - 1; render(); });
         }
 
+        state.render = render;
         render();
+    }
+
+    // Single search box filters BOTH tables at once by the same query. Each row's
+    // data-search attribute (built server-side in Thymeleaf) is matched, then both
+    // pagers are reset to page 1 and re-rendered against the new matching set.
+    function filterBirthdays() {
+        const query = document.getElementById('birthdaySearch').value.trim().toLowerCase();
+        let totalMatches = 0;
+
+        ['policyholderTable', 'relativeBirthdayTable'].forEach(tableId => {
+            const rows = Array.from(document.querySelectorAll('#' + tableId + ' tbody tr'));
+            let tableMatches = 0;
+
+            rows.forEach(row => {
+                const haystack = row.getAttribute('data-search') || '';
+                const isMatch = query === '' || haystack.indexOf(query) !== -1;
+                row.classList.toggle('row-hidden', !isMatch);
+                if (isMatch) tableMatches++;
+            });
+
+            totalMatches += tableMatches;
+
+            const noResultsMsg = document.querySelector('.no-results-msg[data-table="' + tableId + '"]');
+            if (noResultsMsg) {
+                noResultsMsg.style.display = (query !== '' && tableMatches === 0 && rows.length > 0) ? 'block' : 'none';
+            }
+
+            if (pagers[tableId]) {
+                pagers[tableId].currentPage = 0;
+                pagers[tableId].render();
+            }
+        });
+
+        document.getElementById('matchCount').textContent =
+            query !== '' ? totalMatches + ' matching entr' + (totalMatches === 1 ? 'y' : 'ies') : '';
     }
 
     setupPager('policyholderTable', 'policyholderPager', 20);
     setupPager('relativeBirthdayTable', 'relativePager', 20);
+
+    // Pressing Enter in the search box just re-runs the filter (already live via
+    // 'input'), rather than submitting any surrounding form.
+    document.getElementById('birthdaySearch').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            filterBirthdays();
+        }
+    });
 </script>
 </body>
 </html>

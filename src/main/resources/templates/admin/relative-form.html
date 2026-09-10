@@ -5,6 +5,56 @@
     <title>Relative Form - KFS Premium Reminder</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <div th:replace="~{fragments/topbar :: favicon}"></div>
+    <style>
+        /* --- Lightweight typeable datepicker -----------------------------------
+           Wraps any input[data-datepicker] with a calendar-icon button and a
+           popover month grid. The th:field-bound input becomes a hidden field
+           carrying the real ISO (yyyy-MM-dd) value the server expects, so no
+           backend/entity changes are needed; a separate visible text field shows
+           and accepts dd-MM-yyyy (also accepts dd/MM/yyyy or yyyy-MM-dd typed in,
+           normalizing to dd-MM-yyyy on blur). The calendar is a shortcut, not a
+           replacement for typing - both paths end up writing the hidden ISO field. */
+        .dp-wrap { position: relative; display: inline-flex; width: 100%; }
+        .dp-wrap input { padding-right: 34px; width: 100%; box-sizing: border-box; }
+        .dp-toggle {
+            position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+            width: 26px; height: 26px; border: none; background: transparent;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            border-radius: 5px; color: var(--text-mid);
+        }
+        .dp-toggle:hover { background: var(--off-white); }
+        .dp-toggle svg { width: 16px; height: 16px; }
+        .dp-popover {
+            position: absolute; top: calc(100% + 6px); left: 0; z-index: 50;
+            background: var(--white); border: 1px solid var(--border); border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12); padding: 10px; width: 260px;
+            display: none;
+        }
+        .dp-popover.open { display: block; }
+        .dp-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; gap: 6px; }
+        .dp-head select { padding: 3px 4px; font-size: 13px; }
+        .dp-nav {
+            border: 1px solid var(--border); background: var(--white); border-radius: 6px;
+            width: 26px; height: 26px; cursor: pointer; font-size: 14px; line-height: 1;
+        }
+        .dp-nav:hover { background: var(--off-white); }
+        .dp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }
+        .dp-grid .dow { font-size: 11px; color: var(--text-mid); padding: 4px 0; font-weight: 700; }
+        .dp-grid button {
+            border: none; background: transparent; padding: 6px 0; font-size: 12px;
+            border-radius: 6px; cursor: pointer; color: var(--navy);
+        }
+        .dp-grid button:hover { background: var(--off-white); }
+        .dp-grid button.muted { color: var(--text-mid); opacity: 0.5; }
+        .dp-grid button.selected { background: var(--orange); color: var(--white); }
+        .dp-grid button.today:not(.selected) { box-shadow: inset 0 0 0 1px var(--orange); }
+        .dp-foot { display: flex; justify-content: space-between; margin-top: 8px; }
+        .dp-foot button {
+            border: none; background: transparent; color: var(--text-mid); font-size: 12px;
+            cursor: pointer; text-decoration: underline;
+        }
+        .dp-hint { font-size: 11px; color: var(--text-mid); margin-top: 6px; }
+    </style>
 </head>
 <body>
 <div th:replace="~{fragments/topbar :: admin('relatives')}"></div>
@@ -33,7 +83,9 @@
             </div>
             <div>
                 <label>Date of Birth</label>
-                <input type="date" th:field="*{dateOfBirth}" required>
+                <input type="text" th:field="*{dateOfBirth}" data-datepicker
+                       data-min-year-offset="-110" data-max-year-offset="0"
+                       placeholder="DD-MM-YYYY" data-required="true">
             </div>
             <div>
                 <label>Email</label>
@@ -57,5 +109,234 @@
         </form>
     </div>
 </div>
+
+<script>
+    // ---------------------------------------------------------------------------
+    // Minimal, dependency-free typeable datepicker. Attaches to every
+    // input[data-datepicker] on the page. The th:field-bound input is switched to
+    // type="hidden" and keeps carrying the real ISO (yyyy-MM-dd) value the server
+    // expects; a new visible text input shows/accepts dd-MM-yyyy. Two ways to set
+    // it, both end up writing the hidden field:
+    //   1) Type directly - accepts dd-MM-yyyy, dd/MM/yyyy, or yyyy-MM-dd, and the
+    //      visible field normalizes to dd-MM-yyyy on blur.
+    //   2) Click the calendar icon - pick a day/month/year from the popover.
+    // A field marked data-required="true" moves that requirement onto the visible
+    // input (the hidden one can't meaningfully show/enforce native validation),
+    // since that's the one the user actually interacts with.
+    // ---------------------------------------------------------------------------
+    (function () {
+        const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+        const DOW = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+
+        function pad(n) { return String(n).padStart(2, '0'); }
+
+        function toIso(y, m, d) { return y + '-' + pad(m + 1) + '-' + pad(d); }
+        function toDisplay(y, m, d) { return pad(d) + '-' + pad(m + 1) + '-' + y; }
+
+        // Parses "dd-MM-yyyy", "dd/MM/yyyy", "yyyy-MM-dd" (and 2-digit years) into
+        // a {y, m (0-based), d} object, or null if it doesn't recognize the string.
+        function parseFlexible(raw) {
+            if (!raw) return null;
+            const s = raw.trim();
+
+            let m = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+            if (m) return normalize(+m[3], +m[2] - 1, +m[1]);
+
+            m = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+            if (m) return normalize(+m[1], +m[2] - 1, +m[3]);
+
+            m = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2})$/);
+            if (m) {
+                let year = +m[3];
+                year += (year < 50 ? 2000 : 1900);
+                return normalize(year, +m[2] - 1, +m[1]);
+            }
+
+            return null;
+        }
+
+        function normalize(y, m, d) {
+            const date = new Date(y, m, d);
+            if (date.getFullYear() !== y || date.getMonth() !== m || date.getDate() !== d) return null;
+            return { y, m, d };
+        }
+
+        function daysInMonth(y, m) { return new Date(y, m + 1, 0).getDate(); }
+
+        function attach(boundInput) {
+            if (boundInput.dataset.dpAttached) return;
+            boundInput.dataset.dpAttached = 'true';
+
+            const today = new Date();
+            const minYear = today.getFullYear() + parseInt(boundInput.dataset.minYearOffset || '-110', 10);
+            const maxYear = today.getFullYear() + parseInt(boundInput.dataset.maxYearOffset || '0', 10);
+            const isRequired = boundInput.dataset.required === 'true' || boundInput.required;
+
+            const initialIso = boundInput.value;
+            boundInput.type = 'hidden';
+            boundInput.removeAttribute('required');
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.placeholder = boundInput.placeholder || 'DD-MM-YYYY';
+            if (isRequired) input.required = true;
+            const isoMatch = initialIso.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+            const initialParsed = isoMatch ? normalize(+isoMatch[1], +isoMatch[2] - 1, +isoMatch[3]) : null;
+            if (initialParsed) input.value = toDisplay(initialParsed.y, initialParsed.m, initialParsed.d);
+
+            const wrap = document.createElement('div');
+            wrap.className = 'dp-wrap';
+            boundInput.parentNode.insertBefore(wrap, boundInput);
+            wrap.appendChild(input);
+            wrap.appendChild(boundInput);
+
+            const toggle = document.createElement('button');
+            toggle.type = 'button';
+            toggle.className = 'dp-toggle';
+            toggle.setAttribute('aria-label', 'Open calendar');
+            toggle.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>';
+            wrap.appendChild(toggle);
+
+            const popover = document.createElement('div');
+            popover.className = 'dp-popover';
+            wrap.appendChild(popover);
+
+            let viewYear = Math.min(Math.max(today.getFullYear(), minYear), maxYear);
+            let viewMonth = today.getMonth();
+            let selected = initialParsed;
+            if (selected) { viewYear = selected.y; viewMonth = selected.m; }
+
+            function renderPopover() {
+                const yearOptions = [];
+                for (let y = maxYear; y >= minYear; y--) {
+                    yearOptions.push('<option value="' + y + '"' + (y === viewYear ? ' selected' : '') + '>' + y + '</option>');
+                }
+                const monthOptions = MONTH_NAMES.map((name, i) =>
+                    '<option value="' + i + '"' + (i === viewMonth ? ' selected' : '') + '>' + name + '</option>').join('');
+
+                let grid = '<div class="dp-grid">' + DOW.map(d => '<span class="dow">' + d + '</span>').join('');
+
+                const firstOfMonth = new Date(viewYear, viewMonth, 1).getDay();
+                const totalDays = daysInMonth(viewYear, viewMonth);
+                const prevMonthDays = daysInMonth(viewYear, viewMonth - 1 < 0 ? 11 : viewMonth - 1);
+
+                for (let i = 0; i < firstOfMonth; i++) {
+                    const d = prevMonthDays - firstOfMonth + i + 1;
+                    grid += '<button type="button" class="muted" disabled>' + d + '</button>';
+                }
+                for (let d = 1; d <= totalDays; d++) {
+                    const isSelected = selected && selected.y === viewYear && selected.m === viewMonth && selected.d === d;
+                    const isToday = today.getFullYear() === viewYear && today.getMonth() === viewMonth && today.getDate() === d;
+                    grid += '<button type="button" data-day="' + d + '" class="' +
+                        (isSelected ? 'selected' : '') + (isToday ? ' today' : '') + '">' + d + '</button>';
+                }
+                const remaining = (7 - ((firstOfMonth + totalDays) % 7)) % 7;
+                for (let d = 1; d <= remaining; d++) {
+                    grid += '<button type="button" class="muted" disabled>' + d + '</button>';
+                }
+                grid += '</div>';
+
+                popover.innerHTML =
+                    '<div class="dp-head">' +
+                        '<button type="button" class="dp-nav dp-prev">&lsaquo;</button>' +
+                        '<select class="dp-month">' + monthOptions + '</select>' +
+                        '<select class="dp-year">' + yearOptions + '</select>' +
+                        '<button type="button" class="dp-nav dp-next">&rsaquo;</button>' +
+                    '</div>' +
+                    grid +
+                    '<div class="dp-foot">' +
+                        '<button type="button" class="dp-today">Today</button>' +
+                        '<button type="button" class="dp-clear">Clear</button>' +
+                    '</div>' +
+                    '<div class="dp-hint">Or just type a date (DD-MM-YYYY, DD/MM/YYYY, YYYY-MM-DD)</div>';
+
+                popover.querySelector('.dp-prev').addEventListener('click', () => { shiftMonth(-1); });
+                popover.querySelector('.dp-next').addEventListener('click', () => { shiftMonth(1); });
+                popover.querySelector('.dp-month').addEventListener('change', function () { viewMonth = +this.value; renderPopover(); });
+                popover.querySelector('.dp-year').addEventListener('change', function () { viewYear = +this.value; renderPopover(); });
+                popover.querySelector('.dp-today').addEventListener('click', () => {
+                    const clampedYear = Math.min(Math.max(today.getFullYear(), minYear), maxYear);
+                    selected = { y: clampedYear, m: clampedYear === today.getFullYear() ? today.getMonth() : 0,
+                                 d: clampedYear === today.getFullYear() ? today.getDate() : 1 };
+                    viewYear = selected.y; viewMonth = selected.m;
+                    commit();
+                });
+                popover.querySelector('.dp-clear').addEventListener('click', () => {
+                    selected = null;
+                    input.value = '';
+                    boundInput.value = '';
+                    close();
+                });
+                popover.querySelectorAll('.dp-grid button[data-day]').forEach(btn => {
+                    btn.addEventListener('click', function () {
+                        selected = { y: viewYear, m: viewMonth, d: +this.dataset.day };
+                        commit();
+                    });
+                });
+            }
+
+            function shiftMonth(delta) {
+                viewMonth += delta;
+                if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+                if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+                viewYear = Math.min(Math.max(viewYear, minYear), maxYear);
+                renderPopover();
+            }
+
+            function commit() {
+                input.value = toDisplay(selected.y, selected.m, selected.d);
+                boundInput.value = toIso(selected.y, selected.m, selected.d);
+                close();
+                boundInput.dispatchEvent(new Event('change', { bubbles: true }));
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+
+            function open() {
+                renderPopover();
+                popover.classList.add('open');
+                document.addEventListener('mousedown', onOutsideClick);
+            }
+
+            function close() {
+                popover.classList.remove('open');
+                document.removeEventListener('mousedown', onOutsideClick);
+            }
+
+            function onOutsideClick(e) {
+                if (!wrap.contains(e.target)) close();
+            }
+
+            toggle.addEventListener('click', function () {
+                popover.classList.contains('open') ? close() : open();
+            });
+
+            // Typed input: normalize to dd-MM-yyyy for display once the user leaves
+            // the field, push the equivalent ISO value into the hidden bound field,
+            // and keep the calendar's month/year in sync if it's open. If the field
+            // is cleared, the hidden ISO value is cleared too.
+            input.addEventListener('blur', function () {
+                const parsed = parseFlexible(input.value);
+                if (parsed) {
+                    selected = parsed;
+                    input.value = toDisplay(parsed.y, parsed.m, parsed.d);
+                    boundInput.value = toIso(parsed.y, parsed.m, parsed.d);
+                    boundInput.dispatchEvent(new Event('change', { bubbles: true }));
+                } else if (input.value.trim() !== '') {
+                    input.classList.add('dp-invalid');
+                    return;
+                } else {
+                    selected = null;
+                    boundInput.value = '';
+                }
+                input.classList.remove('dp-invalid');
+            });
+            input.addEventListener('input', function () {
+                input.classList.remove('dp-invalid');
+            });
+        }
+
+        document.querySelectorAll('input[data-datepicker]').forEach(attach);
+    })();
+</script>
 </body>
 </html>

@@ -127,8 +127,8 @@
                     <td th:text="${p.premiumFrequency != null ? p.premiumFrequency.label : '-'}"></td>
                     <td th:text="${p.sumAssured ?: '-'}"></td>
                     <td th:text="${p.premiumAmount}"></td>
-                    <td th:text="${p.startDate ?: '-'}"></td>
-                    <td th:text="${p.nextDueDate}"></td>
+                    <td th:text="${p.startDate != null} ? ${#temporals.format(p.startDate, 'dd-MM-yyyy')} : '-'"></td>
+                    <td th:text="${#temporals.format(p.nextDueDate, 'dd-MM-yyyy')}"></td>
                     <td th:text="${p.policyNumber}"></td>
                     <td class="email-cell">
                         <span class="email-local" th:text="${#strings.arraySplit(p.customer.email ?: '-@', '@')[0]}"></span>

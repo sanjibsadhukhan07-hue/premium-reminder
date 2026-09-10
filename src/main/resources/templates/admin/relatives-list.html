@@ -10,6 +10,7 @@
         .pager-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; justify-content: space-between; }
         .pager-bar select { padding: 4px 8px; }
         .pager-arrow { padding: 5px 12px; font-size: 15px; line-height: 1; }
+        .row-hidden, .page-hidden { display: none !important; }
     </style>
 </head>
 <body>
@@ -22,6 +23,12 @@
             <input type="file" name="file" accept=".xlsx" required>
             <button class="btn btn-secondary" type="submit">Import from Excel</button>
         </form>
+    </div>
+
+    <div class="card">
+        <input type="text" id="relativeSearch" placeholder="Search by name, relation, policyholder, email, or phone..."
+               style="min-width:360px;" autocomplete="off" oninput="filterRelatives()">
+        <span id="matchCount" class="small-note" style="margin-left:10px;"></span>
     </div>
 
     <div class="card" th:if="${relativeImportResult}" style="color:#1e8e50;">
@@ -62,12 +69,13 @@
         </tr>
         </thead>
         <tbody>
-        <tr th:each="r : ${relatives}">
+        <tr th:each="r : ${relatives}"
+            th:attr="data-search=${#strings.toLowerCase(r.fullName + ' ' + (r.relation ?: '') + ' ' + r.customer.fullName + ' ' + (r.email ?: '') + ' ' + (r.phone ?: ''))}">
             <td><input type="checkbox" name="ids" th:value="${r.id}" form="bulkForm" class="rowCheck" onclick="updateBulkBar()"></td>
             <td th:text="${r.fullName}"></td>
             <td th:text="${r.relation ?: '-'}"></td>
             <td th:text="${r.customer.fullName}"></td>
-            <td th:text="${r.dateOfBirth}"></td>
+            <td th:text="${r.dateOfBirth != null} ? ${#temporals.format(r.dateOfBirth, 'dd-MM-yyyy')} : '-'"></td>
             <td th:text="${r.email}"></td>
             <td th:text="${r.phone}"></td>
             <td class="actions-cell">
@@ -80,78 +88,109 @@
         </tr>
         </tbody>
     </table>
+    <p class="small-note no-results-msg" style="display:none;">No relatives match your search.</p>
 
     <div class="card pager-bar" id="relativesPager" style="margin-top:10px;"></div>
 </div>
 
 <script>
     function toggleAll(source) {
-        document.querySelectorAll('.rowCheck').forEach(cb => cb.checked = source.checked);
+        document.querySelectorAll('.rowCheck').forEach(cb => {
+            if (!cb.closest('tr').classList.contains('row-hidden')) cb.checked = source.checked;
+        });
         updateBulkBar();
     }
+
     function updateBulkBar() {
-        const checked = document.querySelectorAll('.rowCheck:checked').length;
-        const total = document.querySelectorAll('.rowCheck').length;
+        const visibleChecks = Array.from(document.querySelectorAll('.rowCheck'))
+            .filter(cb => !cb.closest('tr').classList.contains('row-hidden'));
+        const totalChecked = document.querySelectorAll('.rowCheck:checked').length;
+        const visibleChecked = visibleChecks.filter(cb => cb.checked).length;
+
         const bar = document.getElementById('bulkBar');
         const selectAll = document.getElementById('selectAll');
-        bar.style.display = checked > 0 ? 'flex' : 'none';
-        document.getElementById('selectedCount').textContent = checked + ' selected';
-        selectAll.checked = checked > 0 && checked === total;
-        selectAll.indeterminate = checked > 0 && checked < total;
+        bar.style.display = totalChecked > 0 ? 'flex' : 'none';
+        document.getElementById('selectedCount').textContent = totalChecked + ' selected';
+        selectAll.checked = visibleChecks.length > 0 && visibleChecked === visibleChecks.length;
+        selectAll.indeterminate = visibleChecked > 0 && visibleChecked < visibleChecks.length;
     }
 
-    // Client-side pager: only hides rows visually (via style.display), never removes
-    // them, so checked checkboxes on off-page rows still submit with the bulk form.
-    function setupPager(tableId, controlsId, defaultSize) {
-        const rows = Array.from(document.querySelectorAll('#' + tableId + ' tbody tr'));
-        const controls = document.getElementById(controlsId);
-        let pageSize = defaultSize;
-        let currentPage = 0;
+    let relativesPageSize = 20;
+    let relativesCurrentPage = 0;
 
-        function totalPages() {
-            return Math.max(1, Math.ceil(rows.length / pageSize));
+    function filterRelatives() {
+        const query = document.getElementById('relativeSearch').value.trim().toLowerCase();
+        const rows = Array.from(document.querySelectorAll('#relativesTable tbody tr'));
+        let matches = 0;
+
+        rows.forEach(row => {
+            const haystack = row.getAttribute('data-search') || '';
+            const isMatch = query === '' || haystack.indexOf(query) !== -1;
+            row.classList.toggle('row-hidden', !isMatch);
+            if (isMatch) matches++;
+        });
+
+        document.getElementById('matchCount').textContent =
+            query !== '' ? matches + ' matching relative' + (matches === 1 ? '' : 's') : '';
+
+        const noResultsMsg = document.querySelector('.no-results-msg');
+        if (noResultsMsg) {
+            noResultsMsg.style.display = (query !== '' && matches === 0 && rows.length > 0) ? 'block' : 'none';
         }
 
-        function render() {
-            const tp = totalPages();
-            currentPage = Math.max(0, Math.min(currentPage, tp - 1));
-            const start = currentPage * pageSize;
-            const end = start + pageSize;
-            rows.forEach((row, i) => {
-                row.style.display = (i >= start && i < end) ? '' : 'none';
-            });
-
-            controls.innerHTML = `
-                <div class="pager-bar">
-                    <label class="small-note" style="margin-right:6px;">Rows per page:</label>
-                    <select class="pager-size">
-                        ${[10, 20, 30, 50].map(n => `<option value="${n}" ${n === pageSize ? 'selected' : ''}>${n}</option>`).join('')}
-                    </select>
-                </div>
-                <span class="small-note">Page ${rows.length ? currentPage + 1 : 0} of ${tp} (${rows.length} total)</span>
-                <div class="pager-bar">
-                    <button type="button" class="btn btn-secondary pager-arrow pager-first" ${currentPage === 0 ? 'disabled' : ''} title="First page">&laquo;</button>
-                    <button type="button" class="btn btn-secondary pager-arrow pager-prev" ${currentPage === 0 ? 'disabled' : ''} title="Previous page">&larr;</button>
-                    <button type="button" class="btn btn-secondary pager-arrow pager-next" ${currentPage >= tp - 1 ? 'disabled' : ''} title="Next page">&rarr;</button>
-                    <button type="button" class="btn btn-secondary pager-arrow pager-last" ${currentPage >= tp - 1 ? 'disabled' : ''} title="Last page">&raquo;</button>
-                </div>
-            `;
-
-            controls.querySelector('.pager-size').addEventListener('change', function () {
-                pageSize = parseInt(this.value, 10);
-                currentPage = 0;
-                render();
-            });
-            controls.querySelector('.pager-first').addEventListener('click', function () { currentPage = 0; render(); });
-            controls.querySelector('.pager-prev').addEventListener('click', function () { currentPage--; render(); });
-            controls.querySelector('.pager-next').addEventListener('click', function () { currentPage++; render(); });
-            controls.querySelector('.pager-last').addEventListener('click', function () { currentPage = totalPages() - 1; render(); });
-        }
-
-        render();
+        relativesCurrentPage = 0;
+        renderRelativesPage();
+        updateBulkBar();
     }
 
-    setupPager('relativesTable', 'relativesPager', 20);
+    // Client-side pager: only hides rows visually, never removes them, so checked
+    // checkboxes on off-page (or search-hidden) rows still submit with the bulk form.
+    // Rows excluded by search get .row-hidden; rows excluded only because they're off
+    // the current page get .page-hidden - kept distinct so "select all" only ever
+    // selects rows that currently match the search.
+    function renderRelativesPage() {
+        const allRows = Array.from(document.querySelectorAll('#relativesTable tbody tr'));
+        const matchingRows = allRows.filter(r => !r.classList.contains('row-hidden'));
+        const totalPages = Math.max(1, Math.ceil(matchingRows.length / relativesPageSize));
+        relativesCurrentPage = Math.max(0, Math.min(relativesCurrentPage, totalPages - 1));
+        const start = relativesCurrentPage * relativesPageSize;
+        const end = start + relativesPageSize;
+
+        matchingRows.forEach((row, i) => {
+            row.classList.toggle('page-hidden', !(i >= start && i < end));
+        });
+        allRows.filter(r => r.classList.contains('row-hidden'))
+            .forEach(r => r.classList.remove('page-hidden'));
+
+        const controls = document.getElementById('relativesPager');
+        controls.innerHTML = `
+            <div class="pager-bar">
+                <label class="small-note" style="margin-right:6px;">Rows per page:</label>
+                <select class="pager-size">
+                    ${[10, 20, 30, 50].map(n => `<option value="${n}" ${n === relativesPageSize ? 'selected' : ''}>${n}</option>`).join('')}
+                </select>
+            </div>
+            <span class="small-note">Page ${matchingRows.length ? relativesCurrentPage + 1 : 0} of ${totalPages} (${matchingRows.length} total)</span>
+            <div class="pager-bar">
+                <button type="button" class="btn btn-secondary pager-arrow pager-first" ${relativesCurrentPage === 0 ? 'disabled' : ''} title="First page">&laquo;</button>
+                <button type="button" class="btn btn-secondary pager-arrow pager-prev" ${relativesCurrentPage === 0 ? 'disabled' : ''} title="Previous page">&larr;</button>
+                <button type="button" class="btn btn-secondary pager-arrow pager-next" ${relativesCurrentPage >= totalPages - 1 ? 'disabled' : ''} title="Next page">&rarr;</button>
+                <button type="button" class="btn btn-secondary pager-arrow pager-last" ${relativesCurrentPage >= totalPages - 1 ? 'disabled' : ''} title="Last page">&raquo;</button>
+            </div>
+        `;
+
+        controls.querySelector('.pager-size').addEventListener('change', function () {
+            relativesPageSize = parseInt(this.value, 10);
+            relativesCurrentPage = 0;
+            renderRelativesPage();
+        });
+        controls.querySelector('.pager-first').addEventListener('click', function () { relativesCurrentPage = 0; renderRelativesPage(); });
+        controls.querySelector('.pager-prev').addEventListener('click', function () { relativesCurrentPage--; renderRelativesPage(); });
+        controls.querySelector('.pager-next').addEventListener('click', function () { relativesCurrentPage++; renderRelativesPage(); });
+        controls.querySelector('.pager-last').addEventListener('click', function () { relativesCurrentPage = totalPages - 1; renderRelativesPage(); });
+    }
+
+    renderRelativesPage();
 </script>
 </body>
 </html>
