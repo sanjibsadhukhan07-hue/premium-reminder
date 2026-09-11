@@ -183,7 +183,7 @@ public class PolicyService {
 
         List<Policy> toUnmark = policyRepository.findAll().stream()
                 .filter(Policy::isPaid)
-                .filter(p -> p.getNextDueDate().isAfter(today.plusDays(45)))
+                .filter(p -> !p.getNextDueDate().isAfter(today.plusDays(45)))
                 .toList();
 
         for (Policy p : toUnmark) {

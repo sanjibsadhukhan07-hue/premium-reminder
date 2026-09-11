@@ -23,6 +23,7 @@ public class PremiumReminderScheduler {
     @Scheduled(cron = "0 0 6 * * *", zone = "Asia/Kolkata")
     @Transactional
     public void runDailyRollover() {
+        log.info("runDailyRollover Started");
         int rolled = policyService.rolloverPaidPolicies();
         if (rolled > 0) {
             log.info("Rolled {} paid polic(y/ies) into their next premium cycle", rolled);
@@ -46,18 +47,18 @@ public class PremiumReminderScheduler {
         log.info("Sent {} admin due-tomorrow alert(s)", dueTomorrow.size());
     }
 
-    // Every 5 minutes: unpaid policies whose nextDueDate is more than 45 days out get
-    // flagged paid=true immediately, without moving nextDueDate - independent of the
-    // 6am rollover job, which only advances/resets policies that are ALREADY paid.
-    @Scheduled(cron = "0 */5 * * * *", zone = "Asia/Kolkata")
-    @Transactional
-    public void runFarFutureAutoPaidMark() {
-        log.info("runFarFutureAutoPaidMark Started");
-        int marked = policyService.markFarFuturePoliciesAsPaid();
-        if (marked > 0) {
-            log.info("Marked {} polic(y/ies) as paid (nextDueDate more than 45 days out)", marked);
-        }
-    }
+//    // Every 5 minutes: unpaid policies whose nextDueDate is more than 45 days out get
+//    // flagged paid=true immediately, without moving nextDueDate - independent of the
+//    // 6am rollover job, which only advances/resets policies that are ALREADY paid.
+//    @Scheduled(cron = "0 */5 * * * *", zone = "Asia/Kolkata")
+//    @Transactional
+//    public void runFarFutureAutoPaidMark() {
+//        log.info("runFarFutureAutoPaidMark Started");
+//        int marked = policyService.markFarFuturePoliciesAsPaid();
+//        if (marked > 0) {
+//            log.info("Marked {} polic(y/ies) as paid (nextDueDate more than 45 days out)", marked);
+//        }
+//    }
 
     @Scheduled(cron = "${app.scheduler.cron:0 0 9 * * *}", zone = "Asia/Kolkata")
     @Transactional
