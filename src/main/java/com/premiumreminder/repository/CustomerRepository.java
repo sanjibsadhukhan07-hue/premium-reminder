@@ -14,6 +14,11 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
     // number but frequently leave email blank.
     Optional<Customer> findByPhone(String phone);
 
+    // Matches a specific person against a phone number (see ExcelRowImportService) -
+    // a shared household phone can belong to multiple customers, so lookups during
+    // import key off (fullName, phone) together, not phone alone.
+    Optional<Customer> findByFullNameIgnoreCaseAndPhone(String fullName, String phone);
+
     // Matches on the customer's own fields OR any of their policies' policy number /
     // insurer name, so searching a policy number finds the right person.
     @Query("""
@@ -27,13 +32,7 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
     """)
     List<Customer> search(@Param("q") String q);
 
-    // Uniqueness check for CustomerService.save(): the same name against the same
-    // phone number shouldn't be saved twice (almost always a duplicate entry), but
-    // the phone alone can legitimately repeat across different people (e.g. a shared
-    // household number), so this deliberately checks the pair, not phone alone.
     boolean existsByFullNameIgnoreCaseAndPhone(String fullName, String phone);
 
-    // Same check, excluding the record currently being edited, so updating an
-    // existing customer doesn't flag itself as a duplicate of itself.
     boolean existsByFullNameIgnoreCaseAndPhoneAndIdNot(String fullName, String phone, Long id);
 }

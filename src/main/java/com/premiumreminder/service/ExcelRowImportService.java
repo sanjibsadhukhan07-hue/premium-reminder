@@ -19,6 +19,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Imports a single Excel row in its own, independent transaction (REQUIRES_NEW).
@@ -32,6 +33,8 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class ExcelRowImportService {
+
+    private static final Set<String> VALID_LANGUAGES = Set.of("ENGLISH", "HINDI", "BENGALI");
 
     private final CustomerRepository customerRepository;
     private final PolicyRepository policyRepository;
@@ -47,21 +50,46 @@ public class ExcelRowImportService {
         String fullName = requireField(row, col, fmt, "fullname");
         String phone = requireField(row, col, fmt, "phone");
         String email = optionalField(row, col, fmt, "email", null);
+        if (email != null) email = email.toLowerCase(Locale.ROOT);
 
-        Customer customer = customerRepository.findByPhone(phone).orElse(null);
+        // Matched on (fullName, phone) together, not phone alone - the same phone
+        // number is often shared by a household (spouse/children), so a different
+        // name on that same number is a different person and should become a new
+        // customer, not overwrite whoever's already saved against that phone.
+        Customer customer = customerRepository.findByFullNameIgnoreCaseAndPhone(fullName, phone).orElse(null);
         boolean newCustomer = customer == null;
         if (newCustomer) {
             customer = new Customer();
+            customer.setFullName(fullName);
             customer.setPhone(phone);
         }
-        customer.setFullName(fullName);
         if (email != null) customer.setEmail(email);
         String dob = optionalField(row, col, fmt, "dateofbirth", null);
         if (dob != null) customer.setDateOfBirth(parseDate(dob));
-        customer = customerRepository.saveAndFlush(customer);
+        String messageLanguage = optionalField(row, col, fmt, "messagelanguage", null);
+        if (messageLanguage != null) customer.setMessageLanguage(parseLanguage(messageLanguage));
 
         String policyNumber = optionalField(row, col, fmt, "policynumber", null);
-        if (policyNumber == null || policyNumber.isBlank()) {
+        boolean customerOnlyRow = policyNumber == null || policyNumber.isBlank();
+
+        // "active" is ambiguous across sheets: on a customer-only row (e.g. your own
+        // Customers export sheet, or any sheet with no policy columns at all) it can
+        // only mean the customer's own status, so it's safe to apply here. On a row
+        // that also carries a policy, that same "Active" column means the POLICY's
+        // active flag (see below) - applying it to the customer too would make a
+        // person's status flip depending on whichever of their policies happened to
+        // be imported last, which isn't what it means. So customer-level active is
+        // only ever read from customer-only rows.
+        if (customerOnlyRow) {
+            String customerActive = optionalField(row, col, fmt, "active", null);
+            if (customerActive != null) {
+                customer.setActive(parseBoolOr(customerActive, customer.isActive()));
+            }
+        }
+
+        customer = customerRepository.saveAndFlush(customer);
+
+        if (customerOnlyRow) {
             return newCustomer ? RowOutcome.CUSTOMER_ONLY_NEW : RowOutcome.CUSTOMER_ONLY_EXISTING;
         }
 
@@ -78,6 +106,9 @@ public class ExcelRowImportService {
         String categoryRaw = optionalField(row, col, fmt, "category", null);
         policy.setCategory(categoryRaw != null ? parseCategory(categoryRaw) : sheetDefaultCategory);
         policy.setInsurerName(optionalField(row, col, fmt, "insurername", policy.getInsurerName()));
+        // Proposer (customer.fullName) and who the policy actually covers can differ
+        // (e.g. a policy taken out for a parent/spouse) - "Policy Holder Name" is that
+        // separate, optional field. Left untouched if the sheet doesn't carry it.
         policy.setPolicyHolderName(optionalField(row, col, fmt, "policyholdername", policy.getPolicyHolderName()));
         // officeTag lives on Policy (not Customer) - which office/agent brought THIS
         // policy in, since one customer's policies can come through different offices.
@@ -152,7 +183,7 @@ public class ExcelRowImportService {
             return PolicyCategory.valueOf(raw.trim().toUpperCase(Locale.ROOT).replace(' ', '_'));
         } catch (Exception e) {
             throw new IllegalArgumentException("Invalid 'category': " + raw
-                    + " (expected HEALTH, MOTOR, LIFE, PERSONAL_ACCIDENT, or OTHER)");
+                    + " (expected HEALTH, MOTOR, LIFE, PERSONAL_ACCIDENT, TRAVEL, TERM, or OTHER)");
         }
     }
 
@@ -163,6 +194,15 @@ public class ExcelRowImportService {
             throw new IllegalArgumentException("Invalid 'premiumFrequency': " + raw
                     + " (expected YEARLY, HALF_YEARLY, QUARTERLY, or THREE_YEARLY)");
         }
+    }
+
+    private String parseLanguage(String raw) {
+        String normalized = raw.trim().toUpperCase(Locale.ROOT);
+        if (!VALID_LANGUAGES.contains(normalized)) {
+            throw new IllegalArgumentException("Invalid 'messageLanguage': " + raw
+                    + " (expected ENGLISH, HINDI, or BENGALI)");
+        }
+        return normalized;
     }
 
     private int parseIntOr(String raw, int fallback) {

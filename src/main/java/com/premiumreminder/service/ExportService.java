@@ -75,8 +75,15 @@ public class ExportService {
 
     private void writePolicySheet(XSSFWorkbook wb, CellStyle headerStyle) {
         Sheet sheet = wb.createSheet("Policies");
+        // "Customer Name" is the PROPOSER (policy.customer.fullName) - the person this
+        // policy is filed under and who reminders go to. "Policy Holder Name" is the
+        // separate, optional field for who the policy actually covers when that's a
+        // different person (e.g. a proposer taking out a policy for a parent/spouse) -
+        // see Policy.policyHolderName / the "Leave blank if same as the prospector"
+        // hint on the policy form. Left blank here whenever they're the same person,
+        // exactly as it's stored.
         String[] headers = {
-                "Policy ID", "Customer Name", "Customer Phone", "Office Tag", "Insurer",
+                "Policy ID", "Customer Name", "Policy Holder Name", "Customer Phone", "Office Tag", "Insurer",
                 "Category", "Health Check-up Note", "Vehicle Reg. No.", "Plan Type", "Policy Type",
                 "Premium Frequency", "S.A./IDV", "Premium Amount", "Start Date",
                 "Next Due Date", "Previous Due Date", "Policy Number", "Paid",
@@ -92,6 +99,7 @@ public class ExportService {
             int col = 0;
             row.createCell(col++).setCellValue(p.getId());
             row.createCell(col++).setCellValue(c != null ? nullSafe(c.getFullName()) : "");
+            row.createCell(col++).setCellValue(nullSafe(p.getPolicyHolderName()));
             row.createCell(col++).setCellValue(c != null ? nullSafe(c.getPhone()) : "");
             row.createCell(col++).setCellValue(nullSafe(p.getOfficeTag()));
             row.createCell(col++).setCellValue(nullSafe(p.getInsurerName()));
