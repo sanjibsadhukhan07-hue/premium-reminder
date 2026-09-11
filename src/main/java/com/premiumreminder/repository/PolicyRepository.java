@@ -22,6 +22,8 @@ public interface PolicyRepository extends JpaRepository<Policy, Long> {
 
     List<Policy> findByCustomerId(Long customerId);
 
+    List<Policy> findByPaidFalseAndNextDueDateAfter(LocalDate date);
+
     // Rollover candidates: active + marked paid + renewal date has actually arrived
     // (or passed). Used by PolicyService.rolloverPaidPolicies() in the daily
     // scheduler job, so it's filtered in SQL rather than pulling every row.

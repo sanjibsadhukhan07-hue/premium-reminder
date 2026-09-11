@@ -233,6 +233,23 @@ public class PolicyService {
                 .toList();
     }
 
+    /**
+     * Every 5 minutes: any unpaid policy whose nextDueDate is still MORE than 45 days
+     * away gets marked paid=true as-is - nextDueDate itself is left untouched. This is
+     * distinct from rolloverPaidPolicies(), which only ever flips paid on policies that
+     * are ALREADY marked paid and have crossed into the next cycle.
+     */
+    @Transactional
+    public int markFarFuturePoliciesAsPaid() {
+        LocalDate cutoff = LocalDate.now().plusDays(45);
+        List<Policy> toMark = policyRepository.findByPaidFalseAndNextDueDateAfter(cutoff);
+        for (Policy p : toMark) {
+            p.setPaid(true);
+        }
+        policyRepository.saveAll(toMark);
+        return toMark.size();
+    }
+
     // ---------------------------------------------------------------------------------
     // Bulk import from Excel (.xlsx). Every sheet in the uploaded workbook is scanned;
     // each is expected to have a header row with (case-insensitive, order-independent)
