@@ -62,17 +62,23 @@ public class RelativeController {
                     "Duplicate relative: " + formRelative.getFullName() + " with this phone number already exists for this policyholder.");
             return "redirect:/admin/customers/" + customerId + "/edit";
         }
+
+        boolean isNew = formRelative.getId() == null;
         formRelative.setCustomer(customerService.findById(customerId));
         relativeRepository.save(formRelative);
+        redirectAttributes.addFlashAttribute("relativeSaved",
+                (isNew ? "Relative \"" : "Relative \"") + formRelative.getFullName() + "\" " + (isNew ? "added" : "updated") + " successfully.");
         return "redirect:/admin/customers/" + customerId + "/edit";
     }
 
     @PostMapping("/{id}/delete")
-    public String delete(@PathVariable Long id) {
+    public String delete(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         CustomerRelative relative = relativeRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Relative not found: " + id));
         Long customerId = relative.getCustomer().getId();
+        String name = relative.getFullName();
         relativeRepository.deleteById(id);
+        redirectAttributes.addFlashAttribute("relativeDeleted", "Relative \"" + name + "\" deleted successfully.");
         return "redirect:/admin/customers/" + customerId + "/edit";
     }
 

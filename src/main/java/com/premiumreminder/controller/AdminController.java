@@ -169,7 +169,11 @@ public class AdminController {
             model.addAttribute("customers", sortedCustomers());
             return "admin/policy-form";
         }
+
+        boolean isNew = policy.getId() == null;
         Policy saved = policyService.save(customerId, policy);
+        redirectAttributes.addFlashAttribute("policySaved",
+                isNew ? "Policy added successfully." : "Policy updated successfully.");
 
         if (policyDoc != null && !policyDoc.isEmpty()) {
             try {
@@ -183,10 +187,17 @@ public class AdminController {
     }
 
     @PostMapping("/policies/{id}/delete")
-    public String deletePolicy(@PathVariable Long id) {
-        Long customerId = policyService.findById(id).getCustomer().getId();
+    public String deletePolicy(@PathVariable Long id,
+                               @RequestParam(required = false) String from,
+                               RedirectAttributes redirectAttributes) {
+        Policy policy = policyService.findById(id);
+        Long customerId = policy.getCustomer().getId();
+        String label = policy.getPolicyNumber() != null ? policy.getPolicyNumber() : policy.getCategory().getLabel();
+
         policyService.delete(id);
-        return "redirect:/admin/customers/" + customerId + "/edit";
+        redirectAttributes.addFlashAttribute("policyDeleted", "Policy \"" + label + "\" deleted successfully.");
+
+        return "redirect:" + (from != null ? from : "/admin/customers/" + customerId + "/edit");
     }
 
     @PostMapping("/policies/{id}/mark-paid")

@@ -66,6 +66,25 @@
         <span th:text="${importError}"></span>
     </div>
 
+    <div class="card" th:if="${customerSaved}" style="color:#1e8e50;">
+        <span th:text="${customerSaved}"></span>
+    </div>
+    <div class="card" th:if="${policySaved}" style="color:#1e8e50;">
+        <span th:text="${policySaved}"></span>
+    </div>
+    <div class="card" th:if="${policyDeleted}" style="color:#1e8e50;">
+        <span th:text="${policyDeleted}"></span>
+    </div>
+    <div class="card" th:if="${relativeSaved}" style="color:#1e8e50;">
+        <span th:text="${relativeSaved}"></span>
+    </div>
+    <div class="card" th:if="${relativeDeleted}" style="color:#1e8e50;">
+        <span th:text="${relativeDeleted}"></span>
+    </div>
+    <div class="card" th:if="${importError}" style="color:#c62828;">
+        <span th:text="${importError}"></span>
+    </div>
+
     <div class="card">
         <h2 th:text="${customer.id != null} ? 'Edit Customer' : 'Add Customer'"></h2>
         <form th:action="@{/admin/customers/save}" th:object="${customer}" method="post" class="form-grid">

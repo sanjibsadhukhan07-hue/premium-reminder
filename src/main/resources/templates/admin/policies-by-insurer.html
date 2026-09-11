@@ -70,6 +70,10 @@
         <span th:text="${importError}"></span>
     </div>
 
+    <div class="card" th:if="${policyDeleted}" style="color:#1e8e50;">
+        <span th:text="${policyDeleted}"></span>
+    </div>
+
     <div class="card">
         <input type="text" id="policySearch" placeholder="Search by name, policy no., phone, email, office tag..."
                style="min-width:360px;" autocomplete="off" oninput="filterPolicies()">
@@ -146,6 +150,10 @@
                         <a class="btn btn-primary" th:href="@{/admin/policies/{id}/edit(id=${p.id})}">Edit</a>
                         <a th:if="${p.policyDocFileName != null}" class="btn btn-secondary" target="_blank"
                            th:href="@{/admin/policies/{id}/policy-doc(id=${p.id})}">Doc</a>
+                        <form class="inline" th:action="@{/admin/policies/{id}/delete(id=${p.id},from='/admin/policies?tab=' + ${iter.index})}" method="post"
+                              onsubmit="return confirm('Delete this policy? This cannot be undone.');">
+                            <button class="btn btn-danger" type="submit">Delete</button>
+                        </form>
                         <form class="inline" th:if="${!p.paid}"
                               th:action="@{/admin/policies/{id}/mark-paid(id=${p.id},from='/admin/policies?tab=' + ${iter.index})}" method="post">
                             <button class="btn btn-success" type="submit" title="Marks this premium as paid and immediately moves the due date to the next cycle">Already Paid</button>
