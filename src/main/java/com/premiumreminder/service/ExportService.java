@@ -3,6 +3,7 @@ package com.premiumreminder.service;
 import com.premiumreminder.model.Customer;
 import com.premiumreminder.model.CustomerRelative;
 import com.premiumreminder.model.Policy;
+import com.premiumreminder.repository.CustomerRelativeRepository;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -20,6 +21,7 @@ public class ExportService {
     private final CustomerService customerService;
     private final PolicyService policyService;
     private final BirthdayWishService birthdayWishService;
+    private final CustomerRelativeRepository relativeRepository;
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ISO_LOCAL_DATE;
 
@@ -41,8 +43,10 @@ public class ExportService {
 
     private void writeCustomerSheet(XSSFWorkbook wb, CellStyle headerStyle) {
         Sheet sheet = wb.createSheet("Customers");
+        // Office Tag removed from here - it now lives per-policy (see writePolicySheet),
+        // since one customer's policies can come through different offices/agents.
         String[] headers = {
-                "ID", "Full Name", "Date of Birth", "Office Tag", "Email",
+                "ID", "Full Name", "Date of Birth", "Email",
                 "Phone", "WhatsApp Number", "Message Language", "Active",
                 "Policy Count", "Relative Count", "Earliest Due Date"
         };
@@ -56,7 +60,6 @@ public class ExportService {
             row.createCell(col++).setCellValue(c.getId());
             row.createCell(col++).setCellValue(nullSafe(c.getFullName()));
             row.createCell(col++).setCellValue(c.getDateOfBirth() != null ? c.getDateOfBirth().format(DATE_FMT) : "");
-            row.createCell(col++).setCellValue(nullSafe(c.getOfficeTag()));
             row.createCell(col++).setCellValue(nullSafe(c.getEmail()));
             row.createCell(col++).setCellValue(nullSafe(c.getPhone()));
             row.createCell(col++).setCellValue(nullSafe(c.getWhatsappNumber()));
@@ -90,7 +93,7 @@ public class ExportService {
             row.createCell(col++).setCellValue(p.getId());
             row.createCell(col++).setCellValue(c != null ? nullSafe(c.getFullName()) : "");
             row.createCell(col++).setCellValue(c != null ? nullSafe(c.getPhone()) : "");
-            row.createCell(col++).setCellValue(c != null ? nullSafe(c.getOfficeTag()) : "");
+            row.createCell(col++).setCellValue(nullSafe(p.getOfficeTag()));
             row.createCell(col++).setCellValue(nullSafe(p.getInsurerName()));
             row.createCell(col++).setCellValue(p.getCategory() != null ? p.getCategory().name() : "");
             row.createCell(col++).setCellValue(nullSafe(p.getHealthCheckupNote()));
@@ -129,7 +132,7 @@ public class ExportService {
 
     private void writePolicyholderBirthdaySheet(XSSFWorkbook wb, CellStyle headerStyle) {
         Sheet sheet = wb.createSheet("Policyholder Birthdays");
-        String[] headers = {"Name", "Date of Birth", "Next Birthday", "Office Tag", "Email", "Phone"};
+        String[] headers = {"Name", "Date of Birth", "Next Birthday", "Email", "Phone"};
         writeHeaderRow(sheet, headers, headerStyle);
 
         var entries = birthdayWishService.findAllWithDob();
@@ -141,7 +144,6 @@ public class ExportService {
             row.createCell(col++).setCellValue(nullSafe(c.getFullName()));
             row.createCell(col++).setCellValue(c.getDateOfBirth() != null ? c.getDateOfBirth().format(DATE_FMT) : "");
             row.createCell(col++).setCellValue(e.nextBirthday() != null ? e.nextBirthday().format(DATE_FMT) : "");
-            row.createCell(col++).setCellValue(nullSafe(c.getOfficeTag()));
             row.createCell(col++).setCellValue(nullSafe(c.getEmail()));
             row.createCell(col).setCellValue(nullSafe(c.getPhone()));
         }
@@ -169,6 +171,46 @@ public class ExportService {
         }
         autoSizeColumns(sheet, headers.length);
     }
+
+    // ---------- Relatives ----------
+
+    public byte[] exportRelatives() throws IOException {
+        try (XSSFWorkbook wb = new XSSFWorkbook();
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+            CellStyle headerStyle = headerStyle(wb);
+            writeRelativeSheet(wb, headerStyle);
+
+            wb.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    private void writeRelativeSheet(XSSFWorkbook wb, CellStyle headerStyle) {
+        Sheet sheet = wb.createSheet("Relatives");
+        String[] headers = {
+                "ID", "Name", "Relation", "Policyholder", "Date of Birth",
+                "Email", "Phone", "Message Language"
+        };
+        writeHeaderRow(sheet, headers, headerStyle);
+
+        List<CustomerRelative> relatives = relativeRepository.findAllWithCustomer();
+        int rowNum = 1;
+        for (CustomerRelative r : relatives) {
+            Row row = sheet.createRow(rowNum++);
+            int col = 0;
+            row.createCell(col++).setCellValue(r.getId());
+            row.createCell(col++).setCellValue(nullSafe(r.getFullName()));
+            row.createCell(col++).setCellValue(nullSafe(r.getRelation()));
+            row.createCell(col++).setCellValue(r.getCustomer() != null ? nullSafe(r.getCustomer().getFullName()) : "");
+            row.createCell(col++).setCellValue(r.getDateOfBirth() != null ? r.getDateOfBirth().format(DATE_FMT) : "");
+            row.createCell(col++).setCellValue(nullSafe(r.getEmail()));
+            row.createCell(col++).setCellValue(nullSafe(r.getPhone()));
+            row.createCell(col).setCellValue(nullSafe(r.getMessageLanguage()));
+        }
+        autoSizeColumns(sheet, headers.length);
+    }
+
 
     // ---------- helpers ----------
 

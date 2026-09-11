@@ -26,4 +26,14 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
        OR LOWER(p.insurerName) LIKE LOWER(CONCAT('%', :q, '%'))
     """)
     List<Customer> search(@Param("q") String q);
+
+    // Uniqueness check for CustomerService.save(): the same name against the same
+    // phone number shouldn't be saved twice (almost always a duplicate entry), but
+    // the phone alone can legitimately repeat across different people (e.g. a shared
+    // household number), so this deliberately checks the pair, not phone alone.
+    boolean existsByFullNameIgnoreCaseAndPhone(String fullName, String phone);
+
+    // Same check, excluding the record currently being edited, so updating an
+    // existing customer doesn't flag itself as a duplicate of itself.
+    boolean existsByFullNameIgnoreCaseAndPhoneAndIdNot(String fullName, String phone, Long id);
 }

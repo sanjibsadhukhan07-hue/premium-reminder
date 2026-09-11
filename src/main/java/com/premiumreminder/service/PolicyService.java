@@ -3,13 +3,13 @@ package com.premiumreminder.service;
 import com.premiumreminder.model.Customer;
 import com.premiumreminder.model.Policy;
 import com.premiumreminder.model.PolicyCategory;
-import com.premiumreminder.model.PremiumFrequency;
 import com.premiumreminder.repository.CustomerRepository;
 import com.premiumreminder.repository.PolicyRepository;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,7 +17,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.*;
 
@@ -28,6 +27,7 @@ public class PolicyService {
 
     private final PolicyRepository policyRepository;
     private final CustomerRepository customerRepository;
+    private final ExcelRowImportService excelRowImportService;
 
     public Policy findById(Long id) {
         return policyRepository.findById(id)
@@ -65,6 +65,9 @@ public class PolicyService {
         target.setPolicyHolderName(formPolicy.getPolicyHolderName());
         target.setPolicyNumber(formPolicy.getPolicyNumber());
         target.setInsurerName(formPolicy.getInsurerName());
+        // officeTag now lives on Policy (moved off Customer) - copy it from the form
+        // the same way every other policy field is copied here.
+        target.setOfficeTag(formPolicy.getOfficeTag());
         target.setPlanType(formPolicy.getPlanType());
         target.setPolicyType(formPolicy.getPolicyType());
         target.setSumAssured(formPolicy.getSumAssured());
@@ -236,14 +239,26 @@ public class PolicyService {
     // column names:
     //
     //   Required:  fullName, phone, policyNumber, premiumAmount, nextDueDate
-    //   Optional:  email, category (HEALTH/MOTOR/LIFE/PERSONAL_ACCIDENT/OTHER, default
-    //              HEALTH), insurerName, officeTag, dateOfBirth, planType, policyType,
-    //              sumAssured, healthCheckupNote, vehicleRegistrationNo, startDate,
-    //              premiumFrequency (YEARLY/HALF_YEARLY/QUARTERLY/THREE_YEARLY, default
-    //              YEARLY), reminderWindowDays (default 30), active (default true)
+    //   Optional (customer-level):  email, dateOfBirth
+    //   Optional (policy-level):    category (HEALTH/MOTOR/LIFE/PERSONAL_ACCIDENT/OTHER,
+    //              default HEALTH), insurerName, officeTag (which office/agent brought
+    //              THIS policy in - lives on the policy, not the customer, since one
+    //              person's policies can come through different offices/agents),
+    //              planType, policyType, sumAssured, healthCheckupNote,
+    //              vehicleRegistrationNo, startDate, premiumFrequency
+    //              (YEARLY/HALF_YEARLY/QUARTERLY/THREE_YEARLY, default YEARLY),
+    //              reminderWindowDays (default 30), active (default true),
+    //              paid (default false, or preserved on existing policies)
     //
     // Matching: customer is matched/created on phone number; policy is matched/created
     // on policyNumber and linked to that customer.
+    //
+    // Also accepts our own export format (see ExportService), whose "Customers" and
+    // "Policies" sheets use headers like "Customer Phone" / "Customer Email" /
+    // "Vehicle Reg. No." / "Paid" (Yes/No) - aliased below to the canonical names.
+    //
+    // Each row is imported in its own transaction (see ExcelRowImportService) so a
+    // single bad/duplicate row can't roll back the rest of the workbook.
     // ---------------------------------------------------------------------------------
     private static final Map<String, String> HEADER_ALIASES = Map.ofEntries(
             Map.entry("name", "fullname"),
@@ -253,6 +268,9 @@ public class PolicyService {
             Map.entry("phonenumber", "phone"),
             Map.entry("mobileno", "phone"),
             Map.entry("mobile", "phone"),
+            Map.entry("customerphone", "phone"),
+            Map.entry("customeremail", "email"),
+            Map.entry("emailid", "email"),
             Map.entry("company", "insurername"),
             Map.entry("insurer", "insurername"),
             Map.entry("healthcheckup", "healthcheckupnote"),
@@ -271,6 +289,7 @@ public class PolicyService {
             Map.entry("policynameregistrationno", "vehicleregistrationno"),
             Map.entry("registrationno", "vehicleregistrationno"),
             Map.entry("regno", "vehicleregistrationno"),
+            Map.entry("vehicleregno", "vehicleregistrationno"),
             Map.entry("frequency", "premiumfrequency"),
             Map.entry("policycategory", "category")
     );
@@ -279,7 +298,6 @@ public class PolicyService {
         return raw.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
     }
 
-    @Transactional
     public ExcelImportResult importFromExcel(MultipartFile file) throws IOException {
         ExcelImportResult result = new ExcelImportResult();
 
@@ -310,7 +328,19 @@ public class PolicyService {
 
                     result.totalRows++;
                     try {
-                        processRow(row, columnIndex, formatter, result, defaultCategoryForSheet(sheet.getSheetName()));
+                        // REQUIRES_NEW inside importRow: this row commits (or rolls back)
+                        // independently of every other row, so one duplicate-key or
+                        // bad-data row can't poison the session for the rest of the import.
+                        ExcelRowImportService.RowOutcome outcome = excelRowImportService.importRow(
+                                row, columnIndex, formatter, defaultCategoryForSheet(sheet.getSheetName()));
+                        if (outcome.newCustomer()) result.customersCreated++;
+                        if (outcome.newPolicy()) result.policiesImported++;
+                        else if (outcome.updatedPolicy()) result.policiesUpdated++;
+                        result.successRows++;
+                    } catch (DataIntegrityViolationException e) {
+                        result.duplicates++;
+                        result.errors.add("Sheet '" + sheet.getSheetName() + "', row " + (rowNum + 1)
+                                + ": duplicate or conflicting value (e.g. email already in use)");
                     } catch (Exception e) {
                         result.errors.add("Sheet '" + sheet.getSheetName() + "', row " + (rowNum + 1) + ": " + e.getMessage());
                     }
@@ -332,139 +362,10 @@ public class PolicyService {
         String s = sheetName.toUpperCase(Locale.ROOT);
         if (s.contains("MOTOR")) return PolicyCategory.MOTOR;
         if (s.contains("TRAVEL")) return PolicyCategory.TRAVEL;
-        if ((s.contains("LIFE") || s.contains("TERM")) && !s.contains("HEALTH")) return PolicyCategory.LIFE;
+        if (s.contains("TERM")) return PolicyCategory.TERM;
+        if (s.contains("LIFE") && !s.contains("HEALTH")) return PolicyCategory.LIFE;
         if (s.contains("ACCIDENT") || s.contains("PERSONAL A")) return PolicyCategory.PERSONAL_ACCIDENT;
         return PolicyCategory.HEALTH;
-    }
-
-    private void processRow(Row row, Map<String, Integer> col, DataFormatter fmt, ExcelImportResult result,
-                            PolicyCategory sheetDefaultCategory) {
-        String fullName = requireField(row, col, fmt, "fullname");
-        String phone = requireField(row, col, fmt, "phone");
-        String policyNumber = requireField(row, col, fmt, "policynumber");
-        BigDecimal premiumAmount = new BigDecimal(requireField(row, col, fmt, "premiumamount").replaceAll("[^0-9.]", ""));
-        LocalDate nextDueDate = parseDate(requireField(row, col, fmt, "nextduedate"));
-        String email = optionalField(row, col, fmt, "email", null);
-
-        Customer customer = customerRepository.findByPhone(phone).orElse(null);
-        boolean newCustomer = customer == null;
-        if (newCustomer) {
-            customer = new Customer();
-            customer.setPhone(phone);
-        }
-        customer.setFullName(fullName);
-        if (email != null) customer.setEmail(email);
-        customer.setOfficeTag(optionalField(row, col, fmt, "officetag", customer.getOfficeTag()));
-        String dob = optionalField(row, col, fmt, "dateofbirth", null);
-        if (dob != null) customer.setDateOfBirth(parseDate(dob));
-        customer = customerRepository.save(customer);
-
-        Policy policy = policyRepository.findByPolicyNumber(policyNumber).orElse(null);
-        boolean newPolicy = policy == null;
-        if (newPolicy) {
-            policy = new Policy();
-            policy.setPolicyNumber(policyNumber);
-        }
-        policy.setCustomer(customer);
-        String categoryRaw = optionalField(row, col, fmt, "category", null);
-        policy.setCategory(categoryRaw != null ? parseCategory(categoryRaw) : sheetDefaultCategory);
-        policy.setInsurerName(optionalField(row, col, fmt, "insurername", policy.getInsurerName()));
-        policy.setPolicyHolderName(optionalField(row, col, fmt, "policyholdername", policy.getPolicyHolderName()));
-        policy.setPlanType(optionalField(row, col, fmt, "plantype", policy.getPlanType()));
-        policy.setPolicyType(optionalField(row, col, fmt, "policytype", policy.getPolicyType()));
-        String sumAssured = optionalField(row, col, fmt, "sumassured", null);
-        if (sumAssured != null && !sumAssured.isBlank()) {
-            policy.setSumAssured(new BigDecimal(sumAssured.replaceAll("[^0-9.]", "")));
-        }
-        policy.setHealthCheckupNote(optionalField(row, col, fmt, "healthcheckupnote", policy.getHealthCheckupNote()));
-        policy.setVehicleRegistrationNo(optionalField(row, col, fmt, "vehicleregistrationno", policy.getVehicleRegistrationNo()));
-        String startDate = optionalField(row, col, fmt, "startdate", null);
-        if (startDate != null && !startDate.isBlank()) {
-            policy.setStartDate(parseDate(startDate));
-        }
-        policy.setPremiumAmount(premiumAmount);
-        policy.setNextDueDate(nextDueDate);
-        policy.setPremiumFrequency(parseFrequency(optionalField(row, col, fmt, "premiumfrequency", "YEARLY")));
-        policy.setReminderWindowDays(parseIntOr(optionalField(row, col, fmt, "reminderwindowdays", null), 30));
-        policy.setActive(parseBoolOr(optionalField(row, col, fmt, "active", null), true));
-
-        policyRepository.save(policy);
-
-        if (newPolicy) result.policiesImported++; else result.policiesUpdated++;
-        if (newCustomer) result.customersCreated++;
-    }
-
-    private String requireField(Row row, Map<String, Integer> col, DataFormatter fmt, String name) {
-        Integer idx = col.get(name);
-        String value = idx == null ? null : fmt.formatCellValue(row.getCell(idx)).trim();
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException("Missing required field '" + name + "'");
-        }
-        return value;
-    }
-
-    private String optionalField(Row row, Map<String, Integer> col, DataFormatter fmt, String name, String fallback) {
-        Integer idx = col.get(name);
-        if (idx == null) return fallback;
-        String value = fmt.formatCellValue(row.getCell(idx)).trim();
-        return value.isBlank() ? fallback : value;
-    }
-
-    private LocalDate parseDate(String raw) {
-        raw = raw.trim();
-        int spaceIdx = raw.indexOf(' ');
-        if (spaceIdx > 0 && raw.substring(spaceIdx + 1).contains(":")) {
-            raw = raw.substring(0, spaceIdx);
-        }
-        List<java.time.format.DateTimeFormatter> patterns = List.of(
-                java.time.format.DateTimeFormatter.ISO_LOCAL_DATE,
-                java.time.format.DateTimeFormatter.ofPattern("dd-MM-yyyy"),
-                java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"),
-                java.time.format.DateTimeFormatter.ofPattern("d-M-yy"),
-                java.time.format.DateTimeFormatter.ofPattern("d/M/yy"),
-                java.time.format.DateTimeFormatter.ofPattern("M/d/yyyy"),
-                java.time.format.DateTimeFormatter.ofPattern("M/d/yy")
-        );
-        for (var pattern : patterns) {
-            try {
-                return LocalDate.parse(raw, pattern);
-            } catch (Exception ignored) {
-                // try next pattern
-            }
-        }
-        throw new IllegalArgumentException("Unrecognized date format: " + raw + " (use YYYY-MM-DD or DD-MM-YYYY)");
-    }
-
-    private PolicyCategory parseCategory(String raw) {
-        try {
-            return PolicyCategory.valueOf(raw.trim().toUpperCase(Locale.ROOT).replace(' ', '_'));
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Invalid 'category': " + raw
-                    + " (expected HEALTH, MOTOR, LIFE, PERSONAL_ACCIDENT, or OTHER)");
-        }
-    }
-
-    private PremiumFrequency parseFrequency(String raw) {
-        try {
-            return PremiumFrequency.valueOf(raw.trim().toUpperCase(Locale.ROOT).replace(' ', '_').replace('-', '_'));
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Invalid 'premiumFrequency': " + raw
-                    + " (expected YEARLY, HALF_YEARLY, QUARTERLY, or THREE_YEARLY)");
-        }
-    }
-
-    private int parseIntOr(String raw, int fallback) {
-        if (raw == null || raw.isBlank()) return fallback;
-        try {
-            return Integer.parseInt(raw.trim());
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("Invalid integer: " + raw);
-        }
-    }
-
-    private boolean parseBoolOr(String raw, boolean fallback) {
-        if (raw == null || raw.isBlank()) return fallback;
-        return Boolean.parseBoolean(raw.trim());
     }
 
     @Getter
@@ -473,10 +374,17 @@ public class PolicyService {
         private int customersCreated = 0;
         private int policiesImported = 0;
         private int policiesUpdated = 0;
+        private int successRows = 0;
+        private int duplicates = 0;
         private final List<String> errors = new ArrayList<>();
 
         public int getSkipped() {
             return errors.size();
+        }
+
+        /** Errors that were NOT duplicates (bad data, missing required field, etc.) */
+        public int getOtherErrors() {
+            return errors.size() - duplicates;
         }
     }
 }

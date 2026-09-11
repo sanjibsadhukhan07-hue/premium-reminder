@@ -11,6 +11,7 @@ public enum PolicyCategory {
     LIFE("Life"),
     PERSONAL_ACCIDENT("Personal Accident"),
     TRAVEL("Travel"),
+    TERM("Term"),
     OTHER("Other");
 
     private final String label;

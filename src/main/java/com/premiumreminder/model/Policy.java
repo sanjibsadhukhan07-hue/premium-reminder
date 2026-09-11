@@ -18,13 +18,17 @@ import java.time.ZoneId;
 /**
  * A single insurance policy belonging to a Customer. Fields map onto the columns used
  * across your existing tracking sheets (HDFC Health, TATA Health, Motor, ...):
- *   NAME -> customer.fullName, OFFICE TAG -> customer.officeTag,
+ *   NAME -> customer.fullName, OFFICE TAG -> officeTag,
  *   COMPANY -> insurerName, PLAN TYPE -> planType, POLICY TYPE -> policyType,
  *   S.A./IDV -> sumAssured, PREMIUM -> premiumAmount,
  *   STARTING DATE -> startDate, RENUWAL DATE -> nextDueDate, POLICY NO. -> policyNumber.
  * Category-specific extras (health check-up note, vehicle registration number) are kept
  * as separate optional fields rather than overloading one column, since the source
  * sheets used the same column header for different things per category.
+ * <p>
+ * officeTag (which office/agent brought this policy in, e.g. "PAMPA", "FCA", "ANUPAM",
+ * "SELF") lives here rather than on Customer, since the same person can have policies
+ * sourced through different offices/agents.
  */
 @Entity
 @Table(name = "policy")
@@ -49,6 +53,12 @@ public class Policy {
     private Customer customer;
 
     private String policyHolderName;
+
+    // Free-text office/agent tag carried over from the source sheets (e.g. "PAMPA",
+    // "FCA", "ANUPAM", "SELF") - which office/agent brought this particular policy in.
+    // Display-only. Lives on the policy, not the customer, since one person's policies
+    // can come through different offices/agents.
+    private String officeTag;
 
     @NotNull
     @Enumerated(EnumType.STRING)

@@ -243,6 +243,26 @@ code { background: var(--off-white); color: var(--orange); padding: 3px 9px; bor
     outline-offset: 2px;
 }
 
+/* --- Lightweight searchable select --------------------------------------
+   Wraps any select[data-searchable-select] with a typeahead text input and
+   a filtered dropdown list, built entirely from that select's own <option>
+   elements - no backend/data changes needed. The select stays in the DOM
+   (just visually hidden) so its name/value keep submitting normally and
+   any required attribute still applies to it directly. */
+.ss-wrap { position: relative; }
+.ss-wrap select { display: none; }
+.ss-input { width: 100%; box-sizing: border-box; }
+.ss-list {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 50;
+    max-height: 240px; overflow-y: auto; background: var(--white);
+    border: 1px solid var(--border); border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12); display: none;
+}
+.ss-list.open { display: block; }
+.ss-option { padding: 8px 10px; font-size: 13px; cursor: pointer; }
+.ss-option:hover, .ss-option.active { background: var(--off-white); }
+.ss-option.no-match { color: var(--text-mid); cursor: default; }
+
 @media (max-width: 900px) {
     .container { width: 96%; margin: 14px auto; }
     .topbar { padding: 10px 3%; row-gap: 8px; }

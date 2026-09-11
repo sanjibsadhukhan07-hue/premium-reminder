@@ -18,10 +18,12 @@
     <div class="card" th:if="${importResult}">
         <strong>Import complete:</strong>
         <span th:text="${importResult.totalRows}"></span> row(s) processed —
-        <span th:text="${importResult.customersCreated}"></span> new customer(s),
+        <span th:text="${importResult.successRows}"></span> inserted/updated successfully
+        (<span th:text="${importResult.customersCreated}"></span> new customer(s),
         <span th:text="${importResult.policiesImported}"></span> new polic(y/ies),
-        <span th:text="${importResult.policiesUpdated}"></span> updated,
-        <span th:text="${importResult.skipped}"></span> skipped.
+        <span th:text="${importResult.policiesUpdated}"></span> updated),
+        <span th:text="${importResult.duplicates}"></span> duplicate(s) skipped,
+        <span th:text="${importResult.otherErrors}"></span> other error(s).
         <ul th:if="${!importResult.errors.isEmpty()}">
             <li th:each="err : ${importResult.errors}" style="color:#c0392b;" th:text="${err}"></li>
         </ul>
@@ -85,7 +87,10 @@
                     <td><input type="checkbox" name="ids" th:value="${c.id}" form="bulkForm" class="rowCheck" onclick="updateBulkBar()"></td>
                     <td th:text="${c.fullName}"></td>
                     <td th:text="${c.dateOfBirth != null} ? ${#temporals.format(c.dateOfBirth, 'dd-MM-yyyy')} : '-'"></td>
-                    <td th:text="${c.officeTag ?: '-'}"></td>
+                    <!-- officeTag now lives on Policy, not Customer - show it from the
+                         nearest active policy (same one driving Due Date/Status below).
+                         Falls back to '-' if there's no active policy or no tag on it. -->
+                    <td th:text="${c.nearestActivePolicy?.officeTag ?: '-'}"></td>
                     <td><span class="truncate" th:text="${c.email ?: '-'}" th:title="${c.email}"></span></td>
                     <td>
                         <span th:text="${c.phone}"></span><br
@@ -97,12 +102,16 @@
                         <span th:text="${#lists.size(c.policies)}"></span>
                         <span class="policy-count">polic(y/ies)</span>
                     </td>
-                    <td th:text="${c.earliestDueDate != null} ? ${#temporals.format(c.earliestDueDate, 'dd-MM-yyyy')} : '—'"></td>
+                    <!-- Nearest Due Date / Status come from the nearest ACTIVE policy
+                         (paid or unpaid) rather than only unpaid ones, so a customer whose
+                         policies are all currently paid still shows their real status
+                         instead of "No active policy". -->
+                    <td th:text="${c.nearestActivePolicy != null} ? ${#temporals.format(c.nearestActivePolicy.nextDueDate, 'dd-MM-yyyy')} : '—'"></td>
                     <td>
-                        <span th:if="${c.earliestDueDate == null}" class="badge badge-neutral">No open policy</span>
-                        <span th:if="${c.earliestDueDate != null and c.earliestDueDate.isAfter(T(java.time.LocalDate).now().plusMonths(1))}" class="badge badge-paid">Paid</span>
-                        <span th:if="${c.earliestDueDate != null and !c.earliestDueDate.isAfter(T(java.time.LocalDate).now().plusMonths(1)) and c.earliestDueDate.isBefore(T(java.time.LocalDate).now())}" class="badge badge-overdue">Overdue</span>
-                        <span th:if="${c.earliestDueDate != null and !c.earliestDueDate.isAfter(T(java.time.LocalDate).now().plusMonths(1)) and !c.earliestDueDate.isBefore(T(java.time.LocalDate).now())}" class="badge badge-due">Pending</span>
+                        <span th:if="${c.nearestActivePolicy == null}" class="badge badge-neutral">No active policy</span>
+                        <span th:if="${c.nearestActivePolicy != null and c.nearestActivePolicy.paid}" class="badge badge-paid">Paid</span>
+                        <span th:if="${c.nearestActivePolicy != null and !c.nearestActivePolicy.paid and c.nearestActivePolicy.nextDueDate.isBefore(T(java.time.LocalDate).now())}" class="badge badge-overdue">Overdue</span>
+                        <span th:if="${c.nearestActivePolicy != null and !c.nearestActivePolicy.paid and !c.nearestActivePolicy.nextDueDate.isBefore(T(java.time.LocalDate).now())}" class="badge badge-due">Pending</span>
                     </td>
                     <td class="actions-cell">
                         <a class="btn btn-primary" th:href="@{/admin/customers/{id}/edit(id=${c.id})}">Edit / View</a>

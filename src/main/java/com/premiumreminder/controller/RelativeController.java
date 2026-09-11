@@ -1,8 +1,10 @@
 package com.premiumreminder.controller;
 
+import com.premiumreminder.model.Customer;
 import com.premiumreminder.model.CustomerRelative;
 import com.premiumreminder.repository.CustomerRelativeRepository;
 import com.premiumreminder.service.CustomerService;
+import com.premiumreminder.service.ExportService;
 import com.premiumreminder.service.RelativeImportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
@@ -11,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.util.Comparator;
 import java.util.List;
 
 @Controller
@@ -21,6 +24,7 @@ public class RelativeController {
     private final CustomerRelativeRepository relativeRepository;
     private final CustomerService customerService;
     private final RelativeImportService relativeImportService;
+    private final ExportService exportService;
 
     @GetMapping
     public String list(Model model) {
@@ -35,7 +39,7 @@ public class RelativeController {
             relative.setCustomer(customerService.findById(customerId));
         }
         model.addAttribute("relative", relative);
-        model.addAttribute("customers", customerService.findAll());
+        model.addAttribute("customers", sortedCustomers());
         return "admin/relative-form";
     }
 
@@ -44,7 +48,7 @@ public class RelativeController {
         CustomerRelative relative = relativeRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Relative not found: " + id));
         model.addAttribute("relative", relative);
-        model.addAttribute("customers", customerService.findAll());
+        model.addAttribute("customers", sortedCustomers());
         return "admin/relative-form";
     }
 
@@ -88,6 +92,17 @@ public class RelativeController {
         return "redirect:/admin/relatives";
     }
 
+    @GetMapping("/export")
+    public org.springframework.http.ResponseEntity<byte[]> exportRelatives() throws java.io.IOException {
+        byte[] data = exportService.exportRelatives();
+        String filename = "relatives-" + java.time.LocalDate.now() + ".xlsx";
+        return org.springframework.http.ResponseEntity.ok()
+                .contentType(org.springframework.http.MediaType
+                        .parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .body(data);
+    }
+
     @PostMapping("/bulk-delete")
     public String bulkDelete(@RequestParam(value = "ids", required = false) List<Long> ids,
                              RedirectAttributes redirectAttributes) {
@@ -98,5 +113,11 @@ public class RelativeController {
         relativeRepository.deleteAllById(ids);
         redirectAttributes.addFlashAttribute("wishSent", "Deleted " + ids.size() + " relative(s).");
         return "redirect:/admin/relatives";
+    }
+
+    private List<Customer> sortedCustomers() {
+        List<Customer> customers = customerService.findAll();
+        customers.sort(Comparator.comparing(c -> c.getFullName() == null ? "" : c.getFullName().toLowerCase()));
+        return customers;
     }
 }

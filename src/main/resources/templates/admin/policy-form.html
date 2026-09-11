@@ -58,6 +58,26 @@
             cursor: pointer; text-decoration: underline;
         }
         .dp-hint { font-size: 11px; color: var(--text-mid); margin-top: 6px; }
+
+        /* --- Lightweight searchable select --------------------------------------
+           Wraps any select[data-searchable-select] with a typeahead text input and
+           a filtered dropdown list, built entirely from that select's own <option>
+           elements - no backend/data changes needed. The select stays in the DOM
+           (just visually hidden) so its name/value keep submitting normally and
+           any required attribute still applies to it directly. */
+        .ss-wrap { position: relative; }
+        .ss-wrap select { display: none; }
+        .ss-input { width: 100%; box-sizing: border-box; }
+        .ss-list {
+            position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 50;
+            max-height: 240px; overflow-y: auto; background: var(--white);
+            border: 1px solid var(--border); border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12); display: none;
+        }
+        .ss-list.open { display: block; }
+        .ss-option { padding: 8px 10px; font-size: 13px; cursor: pointer; }
+        .ss-option:hover, .ss-option.active { background: var(--off-white); }
+        .ss-option.no-match { color: var(--text-mid); cursor: default; }
     </style>
 </head>
 <body>
@@ -65,18 +85,16 @@
 <div class="container">
     <div class="card">
         <h2 th:text="${policy.id != null} ? 'Edit Policy' : 'Add Policy'"></h2>
-        <p><strong>Policyholder:</strong>
-            <span th:if="${policy.customer != null}" th:text="${policy.customer.fullName}"></span>
-        </p>
         <form th:action="@{/admin/policies/save}"
               th:object="${policy}" method="post" enctype="multipart/form-data" class="form-grid">
             <input type="hidden" th:field="*{id}">
 
             <div th:if="${policy.customer == null}">
-                <label>Policyholder</label>
-                <select name="customerId" required>
-                    <option value="">-- select customer --</option>
-                    <option th:each="c : ${customers}" th:value="${c.id}" th:text="${c.fullName}"></option>
+                <label>Proposer</label>
+                <select name="customerId" data-searchable-select required>
+                    <option value="">-- select prospector --</option>
+                    <option th:each="c : ${customers}" th:value="${c.id}"
+                            th:text="${c.fullName} + ' (' + ${c.phone} + ')'"></option>
                 </select>
             </div>
             <input th:if="${policy.customer != null}" type="hidden" name="customerId" th:value="${policy.customer.id}">
@@ -84,7 +102,7 @@
             <div>
                 <label>Policy Holder Name</label>
                 <input type="text" th:field="*{policyHolderName}"
-                       th:placeholder="${policy.customer != null} ? 'Leave blank if same as ' + ${policy.customer.fullName} : 'Leave blank if same as the customer'">
+                       th:placeholder="${policy.customer != null} ? 'Leave blank if same as the prospector (' + ${policy.customer.fullName} + ')' : 'Leave blank if same as the prospector'">
             </div>
             <div>
                 <label>Category</label>
@@ -94,8 +112,12 @@
                 </select>
             </div>
             <div>
-                <label>Insurer</label>
+                <label>Insurer (company)</label>
                 <input type="text" th:field="*{insurerName}" placeholder="e.g. HDFC, TATA AIG, NIC">
+            </div>
+            <div>
+                <label>Office Tag (agent/office, e.g. PAMPA, FCA, ANUPAM)</label>
+                <input type="text" th:field="*{officeTag}">
             </div>
             <div>
                 <label>Policy Number</label>
@@ -408,6 +430,127 @@
         }
 
         document.querySelectorAll('input[data-datepicker]').forEach(attach);
+    })();
+</script>
+
+<script>
+    // ---------------------------------------------------------------------------
+    // Minimal, dependency-free searchable select. Attaches to every
+    // select[data-searchable-select] on the page. The real <select> stays in the
+    // DOM (hidden via CSS) so its name/value/required keep working exactly as a
+    // normal select would on submit; a text input + dropdown list sit on top of
+    // it purely for typeahead filtering, built from the select's own <option>s.
+    // ---------------------------------------------------------------------------
+    (function () {
+        function attach(select) {
+            if (select.dataset.ssAttached) return;
+            select.dataset.ssAttached = 'true';
+
+            const options = Array.from(select.options).filter(o => o.value !== '');
+            const placeholder = select.querySelector('option[value=""]');
+            const placeholderText = placeholder ? placeholder.textContent : 'Search...';
+
+            const wrap = document.createElement('div');
+            wrap.className = 'ss-wrap';
+            select.parentNode.insertBefore(wrap, select);
+            wrap.appendChild(select);
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'ss-input';
+            input.autocomplete = 'off';
+            input.placeholder = placeholderText;
+            wrap.insertBefore(input, select);
+
+            const list = document.createElement('div');
+            list.className = 'ss-list';
+            wrap.appendChild(list);
+
+            const selectedOption = options.find(o => o.selected);
+            if (selectedOption) input.value = selectedOption.textContent;
+
+            let activeIndex = -1;
+
+            function selectedLabel() {
+                const opt = options.find(o => o.value === select.value);
+                return opt ? opt.textContent : '';
+            }
+
+            function renderList(filterText) {
+                const q = (filterText || '').trim().toLowerCase();
+                const matches = options.filter(o => o.textContent.toLowerCase().includes(q));
+                activeIndex = -1;
+
+                list.innerHTML = matches.length
+                    ? matches.map(o =>
+                        '<div class="ss-option" data-value="' + o.value + '">' + o.textContent + '</div>').join('')
+                    : '<div class="ss-option no-match">No matches</div>';
+
+                list.querySelectorAll('.ss-option[data-value]').forEach(el => {
+                    el.addEventListener('mousedown', function (e) {
+                        e.preventDefault(); // fires before input's blur/outside-click handler
+                        selectValue(this.dataset.value, this.textContent);
+                    });
+                });
+                return matches;
+            }
+
+            function selectValue(value, label) {
+                select.value = value;
+                input.value = label;
+                select.dispatchEvent(new Event('change', { bubbles: true }));
+                close();
+            }
+
+            function open() {
+                renderList(input.value === selectedLabel() ? '' : input.value);
+                list.classList.add('open');
+                document.addEventListener('mousedown', onOutsideClick);
+            }
+
+            function close() {
+                list.classList.remove('open');
+                document.removeEventListener('mousedown', onOutsideClick);
+            }
+
+            function onOutsideClick(e) {
+                if (!wrap.contains(e.target)) {
+                    // Revert to the actual selected option's label if the user typed
+                    // something and clicked away without picking anything from the list.
+                    input.value = selectedLabel();
+                    close();
+                }
+            }
+
+            input.addEventListener('focus', open);
+            input.addEventListener('input', function () {
+                renderList(input.value);
+                list.classList.add('open');
+            });
+            input.addEventListener('keydown', function (e) {
+                const items = Array.from(list.querySelectorAll('.ss-option[data-value]'));
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (!list.classList.contains('open')) { open(); return; }
+                    activeIndex = Math.min(activeIndex + 1, items.length - 1);
+                    items.forEach((el, i) => el.classList.toggle('active', i === activeIndex));
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    activeIndex = Math.max(activeIndex - 1, 0);
+                    items.forEach((el, i) => el.classList.toggle('active', i === activeIndex));
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (activeIndex >= 0 && items[activeIndex]) {
+                        selectValue(items[activeIndex].dataset.value, items[activeIndex].textContent);
+                    }
+                } else if (e.key === 'Escape') {
+                    input.value = selectedLabel();
+                    close();
+                }
+            });
+        }
+
+        document.querySelectorAll('select[data-searchable-select]').forEach(attach);
     })();
 </script>
 </body>

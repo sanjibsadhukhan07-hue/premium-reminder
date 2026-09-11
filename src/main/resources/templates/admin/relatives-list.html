@@ -25,10 +25,13 @@
         </form>
     </div>
 
-    <div class="card">
-        <input type="text" id="relativeSearch" placeholder="Search by name, relation, policyholder, email, or phone..."
-               style="min-width:360px;" autocomplete="off" oninput="filterRelatives()">
-        <span id="matchCount" class="small-note" style="margin-left:10px;"></span>
+    <div class="card" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+        <div>
+            <input type="text" id="relativeSearch" placeholder="Search by name, relation, policyholder, email, or phone..."
+                   style="min-width:360px;" autocomplete="off" oninput="filterRelatives()">
+            <span id="matchCount" class="small-note" style="margin-left:10px;"></span>
+        </div>
+        <a class="btn btn-secondary" th:href="@{/admin/relatives/export}">Export Relatives (Excel)</a>
     </div>
 
     <div class="card" th:if="${relativeImportResult}" style="color:#1e8e50;">

@@ -112,14 +112,14 @@
                 </thead>
                 <tbody>
                 <tr th:each="p, pIter : ${entry.value}"
-                    th:attr="data-search=${#strings.toLowerCase(p.customer.fullName + ' ' + (p.policyHolderName ?: '') + ' ' + p.customer.phone + ' ' + (p.customer.email ?: '') + ' ' + (p.customer.officeTag ?: '') + ' ' + p.policyNumber)}">
+                    th:attr="data-search=${#strings.toLowerCase(p.customer.fullName + ' ' + (p.policyHolderName ?: '') + ' ' + p.customer.phone + ' ' + (p.customer.email ?: '') + ' ' + (p.officeTag ?: '') + ' ' + p.policyNumber)}">
                     <td><input type="checkbox" name="ids" th:value="${p.id}" form="bulkForm"
                                th:attr="data-tab=${iter.index}" class="rowCheck" onclick="updateBulkBar()"></td>
                     <td th:text="${pIter.count}"></td>
                     <td th:text="${p.customer.fullName}"></td>
                     <td th:text="${p.policyHolderName ?: p.customer.fullName}"></td>
                     <td th:text="${p.customer.phone}"></td>
-                    <td th:text="${p.customer.officeTag ?: '-'}"></td>
+                    <td th:text="${p.officeTag ?: '-'}"></td>
                     <td th:text="${p.category.label}"></td>
                     <td th:text="${p.category.name() == 'MOTOR'} ? (${p.vehicleRegistrationNo} ?: '-') : (${p.healthCheckupNote} ?: '-')"></td>
                     <td th:text="${p.planType ?: '-'}"></td>

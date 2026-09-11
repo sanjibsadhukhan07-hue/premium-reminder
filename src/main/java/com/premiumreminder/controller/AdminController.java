@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
 
@@ -39,8 +40,11 @@ public class AdminController {
 
     /**
      * Dashboard: policyholders sorted by their nearest upcoming/overdue premium due
-     * date across all their active policies (soonest/most overdue first). Search (q)
-     * filters by name/policy number/email/phone.
+     * date across all their ACTIVE policies (paid or not) - soonest/most overdue
+     * first, customers with no active policy sorted last. This mirrors
+     * Customer::getNearestActivePolicy, which is also what the template uses to
+     * render the "Nearest Due Date" / "Status" columns, so the sort order always
+     * matches what's on screen. Search (q) filters by name/policy number/email/phone.
      */
 
     @GetMapping("/dashboard")
@@ -53,7 +57,10 @@ public class AdminController {
 
         List<Customer> allCustomers = customerService.search(q);
         allCustomers.sort(Comparator.comparing(
-                Customer::getEarliestDueDate,
+                (Customer c) -> {
+                    Policy nearest = c.getNearestActivePolicy();
+                    return nearest != null ? nearest.getNextDueDate() : (LocalDate) null;
+                },
                 Comparator.nullsLast(Comparator.naturalOrder())));
 
         int totalCustomers = allCustomers.size();
@@ -108,9 +115,16 @@ public class AdminController {
         if (result.hasErrors()) {
             return "admin/customer-form";
         }
-        Customer saved = customerService.save(customer);
-        redirectAttributes.addFlashAttribute("customerSaved", "Customer saved successfully.");
-        return "redirect:/admin/customers/" + saved.getId() + "/edit";
+        try {
+            Customer saved = customerService.save(customer);
+            redirectAttributes.addFlashAttribute("customerSaved", "Customer saved successfully.");
+            return "redirect:/admin/customers/" + saved.getId() + "/edit";
+        } catch (IllegalStateException e) {
+            redirectAttributes.addFlashAttribute("importError", e.getMessage());
+            return customer.getId() != null
+                    ? "redirect:/admin/customers/" + customer.getId() + "/edit"
+                    : "redirect:/admin/customers/new";
+        }
     }
 
     @PostMapping("/customers/{id}/delete")
@@ -132,7 +146,7 @@ public class AdminController {
     @GetMapping("/policies/new")
     public String newPolicyFormGeneral(Model model) {
         model.addAttribute("policy", new Policy());
-        model.addAttribute("customers", customerService.search(null)); // adjust if your "list all" method has a different name
+        model.addAttribute("customers", sortedCustomers()); // adjust if your "list all" method has a different name
         return "admin/policy-form";
     }
 
@@ -151,7 +165,7 @@ public class AdminController {
                              Model model) {
         if (result.hasErrors()) {
             policy.setCustomer(customerService.findById(customerId));
-            model.addAttribute("customers", customerService.search(null));
+            model.addAttribute("customers", sortedCustomers());
             return "admin/policy-form";
         }
         Policy saved = policyService.save(customerId, policy);
@@ -354,5 +368,11 @@ public class AdminController {
         adminSettingsService.updatePhone(userId, whatsappNumber);
         redirectAttributes.addFlashAttribute("settingsSaved", "WhatsApp number updated.");
         return "redirect:/admin/settings";
+    }
+
+    private List<Customer> sortedCustomers() {
+        List<Customer> customers = customerService.search(null);
+        customers.sort(Comparator.comparing(c -> c.getFullName() == null ? "" : c.getFullName().toLowerCase()));
+        return customers;
     }
 }

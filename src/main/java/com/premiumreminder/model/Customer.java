@@ -12,7 +12,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * A policyholder (a person), independent of any single policy.
@@ -22,6 +24,10 @@ import java.util.List;
  * person holding several policies at once, often with different insurers (e.g. AVIJIT
  * KOLEY has an HDFC health policy and a separate TATA AIG personal-accident policy).
  * Policy-specific data now lives on Policy (see Policy.java), one-to-many from here.
+ * <p>
+ * officeTag (which office/agent brought a policy in) has similarly moved to Policy -
+ * a customer can have policies sourced through different offices/agents, so it's not
+ * a single fixed attribute of the person.
  */
 @Entity
 @Table(name = "customer")
@@ -52,10 +58,6 @@ public class Customer {
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate dateOfBirth;
 
-    // Free-text office/agent tag carried over from the source sheets (e.g. "PAMPA", "FCA",
-    // "ANUPAM", "SELF") - which office/agent brought this customer in. Display-only.
-    private String officeTag;
-
     // "ENGLISH", "HINDI", or "BENGALI" - drives which pre-approved WhatsApp template
     // language variant is used when sending this customer reminders/wishes.
     private String messageLanguage = "ENGLISH";
@@ -72,10 +74,15 @@ public class Customer {
     private List<CustomerRelative> relatives = new ArrayList<>();
 
     /**
-     * Earliest upcoming/overdue due date across this customer's active, unpaid,
+     * Earliest upcoming/overdue due date across this customer's active, UNPAID,
      * reminder-eligible policies. TRAVEL policies are excluded - they're never
-     * reminded, so they shouldn't drive the dashboard's due-date sort/status either.
-     * Null if none.
+     * reminded, so they shouldn't drive reminder scheduling either. Null if none.
+     * <p>
+     * This intentionally only looks at unpaid policies - it backs the reminder
+     * scheduler's "who's due" logic, not the dashboard display. For the dashboard's
+     * due-date column and status badge, use {@link #getNearestActivePolicy()} instead,
+     * since a customer whose policies are all currently paid should still show their
+     * real status rather than being treated as having no policy at all.
      */
     @Transient
     public LocalDate getEarliestDueDate() {
@@ -84,8 +91,27 @@ public class Customer {
                 .filter(p -> !p.isPaid())
                 .filter(p -> p.getCategory() != PolicyCategory.TRAVEL)
                 .map(Policy::getNextDueDate)
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .min(LocalDate::compareTo)
+                .orElse(null);
+    }
+
+    /**
+     * The active, non-TRAVEL policy with the nearest due date, regardless of paid
+     * status. This is what the dashboard uses to decide what to show in the "Nearest
+     * Due Date" / "Status" / "Office Tag" columns: as long as the customer has at
+     * least one active policy, its actual paid/unpaid state, date, and office tag
+     * drive the row. Only when there is no such policy at all does the dashboard fall
+     * back to "No active policy". Null if the customer has no active, non-TRAVEL
+     * policies.
+     */
+    @Transient
+    public Policy getNearestActivePolicy() {
+        return policies.stream()
+                .filter(Policy::isActive)
+                .filter(p -> p.getCategory() != PolicyCategory.TRAVEL)
+                .filter(p -> p.getNextDueDate() != null)
+                .min(Comparator.comparing(Policy::getNextDueDate))
                 .orElse(null);
     }
 }
