@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface BirthdayLogRepository extends JpaRepository<BirthdayLog, Long> {
     List<BirthdayLog> findTop200ByOrderBySentAtDesc();
+
+    void deleteAllByCustomerId(Long customerId);
 }

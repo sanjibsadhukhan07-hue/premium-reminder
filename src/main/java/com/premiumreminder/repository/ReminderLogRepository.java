@@ -9,4 +9,6 @@ public interface ReminderLogRepository extends JpaRepository<ReminderLog, Long> 
     List<ReminderLog> findTop200ByOrderBySentAtDesc();
 
     List<ReminderLog> findByPolicyIdOrderBySentAtDesc(Long policyId);
+
+    void deleteAllByPolicyIdIn(List<Long> policyIds);
 }

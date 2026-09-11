@@ -34,6 +34,9 @@
     <div class="card" th:if="${customerBulkDeleted}" style="color:#1e8e50;">
         <span th:text="${customerBulkDeleted}"></span>
     </div>
+    <div class="card" th:if="${customerDeleted}" style="color:#1e8e50;">
+        <span th:text="${customerDeleted}"></span>
+    </div>
 
     <div class="card">
         <form th:action="@{/admin/customers/import}" method="post" enctype="multipart/form-data" class="inline">

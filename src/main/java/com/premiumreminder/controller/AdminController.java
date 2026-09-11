@@ -128,8 +128,9 @@ public class AdminController {
     }
 
     @PostMapping("/customers/{id}/delete")
-    public String deleteCustomer(@PathVariable Long id) {
-        customerService.delete(id);
+    public String deleteCustomer(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        String name = customerService.delete(id);
+        redirectAttributes.addFlashAttribute("customerDeleted", "Customer \"" + name + "\" deleted successfully.");
         return "redirect:/admin/dashboard";
     }
 

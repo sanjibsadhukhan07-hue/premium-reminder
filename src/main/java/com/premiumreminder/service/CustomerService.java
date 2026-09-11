@@ -1,7 +1,10 @@
 package com.premiumreminder.service;
 
 import com.premiumreminder.model.Customer;
+import com.premiumreminder.model.Policy;
+import com.premiumreminder.repository.BirthdayLogRepository;
 import com.premiumreminder.repository.CustomerRepository;
+import com.premiumreminder.repository.ReminderLogRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +17,8 @@ import java.util.Locale;
 public class CustomerService {
 
     private final CustomerRepository customerRepository;
+    private final ReminderLogRepository reminderLogRepository;
+    private final BirthdayLogRepository birthdayLogRepository;
 
     public List<Customer> findAll() {
         return customerRepository.findAll();
@@ -86,8 +91,16 @@ public class CustomerService {
         return customerRepository.save(existing);
     }
 
-    public void delete(Long id) {
-        customerRepository.deleteById(id);
+    @Transactional
+    public String delete(Long id) {
+        Customer customer = findById(id);
+        String name = customer.getFullName();
+        List<Long> policyIds = customer.getPolicies().stream().map(Policy::getId).toList();
+        if (!policyIds.isEmpty()) {
+            reminderLogRepository.deleteAllByPolicyIdIn(policyIds);
+        }
+        customerRepository.delete(customer);
+        return name;
     }
 
     public List<Customer> search(String q) {
@@ -97,7 +110,16 @@ public class CustomerService {
         return customerRepository.search(q.trim());
     }
 
+    @Transactional
     public void deleteAll(List<Long> ids) {
-        customerRepository.deleteAllById(ids);
+        List<Customer> customers = customerRepository.findAllById(ids);
+        List<Long> policyIds = customers.stream()
+                .flatMap(c -> c.getPolicies().stream())
+                .map(Policy::getId)
+                .toList();
+        if (!policyIds.isEmpty()) {
+            reminderLogRepository.deleteAllByPolicyIdIn(policyIds);
+        }
+        customerRepository.deleteAll(customers);
     }
 }
