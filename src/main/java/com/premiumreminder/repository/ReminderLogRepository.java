@@ -10,5 +10,6 @@ public interface ReminderLogRepository extends JpaRepository<ReminderLog, Long> 
 
     List<ReminderLog> findByPolicyIdOrderBySentAtDesc(Long policyId);
 
+    // Must run before deleting policies: reminder_log.policy_id is a NOT NULL foreign key.
     void deleteAllByPolicyIdIn(List<Long> policyIds);
 }

@@ -3,8 +3,11 @@ package com.premiumreminder.service;
 import com.premiumreminder.model.Customer;
 import com.premiumreminder.model.Policy;
 import com.premiumreminder.model.PolicyCategory;
+import com.premiumreminder.model.PolicyDocumentBlob;
 import com.premiumreminder.repository.CustomerRepository;
+import com.premiumreminder.repository.PolicyDocumentBlobRepository;
 import com.premiumreminder.repository.PolicyRepository;
+import com.premiumreminder.repository.ReminderLogRepository;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +31,8 @@ public class PolicyService {
     private final PolicyRepository policyRepository;
     private final CustomerRepository customerRepository;
     private final ExcelRowImportService excelRowImportService;
+    private final PolicyDocumentBlobRepository docBlobRepository;
+    private final ReminderLogRepository reminderLogRepository;
 
     public Policy findById(Long id) {
         return policyRepository.findById(id)
@@ -96,14 +101,27 @@ public class PolicyService {
         return policyRepository.save(target);
     }
 
+    /**
+     * Deletes reminder logs first (reminder_log.policy_id is a NOT NULL FK), then the
+     * policy. The document blob row is removed by the DB's ON DELETE CASCADE.
+     */
+    @Transactional
     public void delete(Long id) {
+        reminderLogRepository.deleteAllByPolicyIdIn(List.of(id));
         policyRepository.deleteById(id);
     }
 
+    @Transactional
     public void deleteAll(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return;
+        reminderLogRepository.deleteAllByPolicyIdIn(ids);
         policyRepository.deleteAllById(ids);
     }
 
+    /**
+     * Saves the PDF. File name / content type stay on Policy; the bytes go into the
+     * separate policy_document_blob table so they are only loaded when the doc is opened.
+     */
     @Transactional
     public void savePolicyDoc(Long id, MultipartFile file) throws IOException {
         if (file == null || file.isEmpty()) {
@@ -116,8 +134,21 @@ public class PolicyService {
         Policy policy = findById(id);
         policy.setPolicyDocFileName(file.getOriginalFilename());
         policy.setPolicyDocContentType(contentType);
-        policy.setPolicyDocData(file.getBytes());
         policyRepository.save(policy);
+
+        PolicyDocumentBlob blob = docBlobRepository.findById(id).orElseGet(() -> {
+            PolicyDocumentBlob b = new PolicyDocumentBlob();
+            b.setPolicy(policy);
+            return b;
+        });
+        blob.setData(file.getBytes());
+        docBlobRepository.save(blob);
+    }
+
+    /** Returns the PDF bytes for a policy, or null if none was uploaded. */
+    @Transactional(readOnly = true)
+    public byte[] findPolicyDocData(Long id) {
+        return docBlobRepository.findById(id).map(PolicyDocumentBlob::getData).orElse(null);
     }
 
     /**

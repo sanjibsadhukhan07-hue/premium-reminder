@@ -35,7 +35,7 @@ public class AdminController {
     private final CustomerLoginService customerLoginService;
     private final BirthdayWishService birthdayWishService;
     private final BirthdayLogRepository birthdayLogRepository;
-    private final ExportService exportService;   // add to constructor-injected fields
+    private final ExportService exportService;
     private final AdminSettingsService adminSettingsService;
 
     /**
@@ -46,7 +46,6 @@ public class AdminController {
      * render the "Nearest Due Date" / "Status" columns, so the sort order always
      * matches what's on screen. Search (q) filters by name/policy number/email/phone.
      */
-
     @GetMapping("/dashboard")
     public String dashboard(@RequestParam(name = "q", required = false) String q,
                             @RequestParam(name = "page", defaultValue = "0") int page,
@@ -147,7 +146,7 @@ public class AdminController {
     @GetMapping("/policies/new")
     public String newPolicyFormGeneral(Model model) {
         model.addAttribute("policy", new Policy());
-        model.addAttribute("customers", sortedCustomers()); // adjust if your "list all" method has a different name
+        model.addAttribute("customers", sortedCustomers());
         return "admin/policy-form";
     }
 
@@ -235,7 +234,8 @@ public class AdminController {
     @GetMapping("/policies/{id}/policy-doc")
     public org.springframework.http.ResponseEntity<byte[]> viewPolicyDoc(@PathVariable Long id) {
         Policy policy = policyService.findById(id);
-        byte[] data = policy.getPolicyDocData();
+        // PDF bytes live in their own table now - only loaded here, on demand.
+        byte[] data = policyService.findPolicyDocData(id);
         if (data == null) {
             return org.springframework.http.ResponseEntity.notFound().build();
         }
